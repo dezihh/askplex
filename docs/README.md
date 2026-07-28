@@ -1,4 +1,4 @@
-# AskPlex Unicode/Umlaut Patch - Complete Solution
+﻿# AskPlex Unicode/Umlaut Patch - Complete Solution
 
 **Status:** ✅ Production Ready | **Version:** 1.0 | **Date:** 2026-07-28
 
