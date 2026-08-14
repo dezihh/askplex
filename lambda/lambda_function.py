@@ -34,7 +34,7 @@ dynamodb_adapter = DynamoDbAdapter(table_name=ddb_table_name, create_table=False
 
 DYNAMODB_SCHEMA = 0
 
-logger.info('Starting AskPlex...')
+logger.info('Starte Mein Pexx...')
 
 
 #
@@ -883,4 +883,4 @@ sb.add_global_response_interceptor(SavePersistenceAttributesResponseInterceptor(
 
 
 lambda_handler = sb.lambda_handler()
-logger.info('AskPlex Ready!')
+logger.info('Mein Plex Ready!')

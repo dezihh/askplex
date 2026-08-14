@@ -198,11 +198,11 @@
         "PMS_PLNAME_PLAYLIST": "la playlist {}"
     },
     "de-DE": {
-        "SKILL_WELCOME": "Willkommen bei AskPlex. Was möchten Sie tun?",
+        "SKILL_WELCOME": "Willkommen bei Mein Plex. Was möchten Sie tun?",
         "SKILL_WELCOME_REPROMPT": "Was möchten Sie tun?",
-        "SKILL_WELCOME_PLAYBACK": "Willkommen bei AskPlex, Sie haben gerade {} gehört. Möchten Sie fortfahren?",
+        "SKILL_WELCOME_PLAYBACK": "Willkommen bei Mein Plex, Sie haben gerade {} gehört. Möchten Sie fortfahren?",
         "SKILL_WELCOME_PLAYBACK_REPROMPT": "Möchten Sie fortfahren?",
-        "SKILL_HELP": "AskPlex verbindet sich mit Ihrem Plex-Server. Sie können mich nach Musik von Künstlern, Alben oder Genres fragen, sowie nach bestimmten Songs und Playlists.",
+        "SKILL_HELP": "Mein Plex verbindet sich mit Ihrem Plex-Server. Sie können mich nach Musik von Künstlern, Alben oder Genres fragen, sowie nach bestimmten Songs und Playlists.",
         "SKILL_INTENT_SLOTS_MISSING": "Entschuldigung, das habe ich nicht verstanden.",
         "SKILL_EXCEPTION": "Entschuldigung, ein interner Fehler ist aufgetreten.",
         "SKILL_DEVICE_NOT_SUPPORTED": "Entschuldigung, dieses Gerät wird nicht unterstützt.",
@@ -222,7 +222,7 @@
         "PMS_GENRE_SEARCH_EMPTY": "Entschuldigung, ich kann keine Musik von {} in Ihrer Sammlung finden.",
         "PMS_PLAYLIST_SEARCH_ERROR": "Entschuldigung, es gab einen Fehler bei der Suche nach der Playlist {}.",
         "PMS_PLAYLIST_SEARCH_EMPTY": "Entschuldigung, ich kann die Playlist {} nicht finden.",
-        "PMS_PLAYING": "Wiedergabe von {} in AskPlex.",
+        "PMS_PLAYING": "Wiedergabe von {} in Mein Plex.",
         "PMS_PLNAME_RANDOM_MUSIC": "Zufallsmusik",
         "PMS_PLNAME_MUSIC_BY_ARTIST": "Musik von {}",
         "PMS_PLNAME_SONG": "{song} von {artist}",
