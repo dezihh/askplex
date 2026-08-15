@@ -200,6 +200,66 @@ class UnicodeNormalizer:
         # No match found
         return None, -1
 
+    def get_comparison_key(self, text: str) -> str:
+        """
+        Build a deterministic comparison key for a text.
+
+        The key is used to compare queries against Plex names while ignoring
+        case, diacritics, punctuation and whitespace. It is intentionally
+        lossy for punctuation (AC/DC -> acdc) but preserves the distinction
+        between Umlaut variants (Die Ärzte -> diearzte, Die Aerzte -> dieaerzte),
+        so the existing Umlaut fallback logic remains the primary mechanism
+        for those cases.
+
+        Expected keys:
+            AC/DC          -> acdc
+            AC DC          -> acdc
+            A.C.D.C.       -> acdc
+            AC DC Tribute  -> acdctribute
+            abcd           -> abcd
+            Die Ärzte      -> diearzte
+            Die Aerzte     -> dieaerzte
+        """
+        if not text:
+            return ""
+
+        normalized = unicodedata.normalize("NFKD", text).casefold()
+        normalized = "".join(
+            character
+            for character in normalized
+            if unicodedata.category(character) != "Mn"
+        )
+        return "".join(character for character in normalized if character.isalnum())
+
+    def get_exact_normalized_matches(
+        self,
+        query: str,
+        candidates: list,
+    ) -> list:
+        """
+        Return all candidates whose comparison key exactly matches the query key.
+
+        Unlike get_best_match(), this method never silently picks a single
+        candidate when several share the same comparison key. The order of the
+        candidates list is preserved.
+
+        Args:
+            query: Search query
+            candidates: List of candidate strings to match against
+
+        Returns:
+            List of candidates with an identical normalized comparison key.
+        """
+        query_key = self.get_comparison_key(query)
+        if not query_key:
+            return []
+
+        return [
+            candidate
+            for candidate in candidates
+            if self.get_comparison_key(candidate) == query_key
+        ]
+
 
 class SearchStrategy:
     """Encapsulates search fallback logic for integration into controller."""

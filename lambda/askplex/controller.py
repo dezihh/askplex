@@ -6,6 +6,7 @@ from logging import Logger
 from ask_sdk_model import Response
 from ask_sdk_model.interfaces.audioplayer import AudioItem, Stream, AudioItemMetadata, PlayDirective, PlayBehavior, StopDirective
 from ask_sdk_model.interfaces import display
+from ask_sdk_model.ui import SimpleCard
 
 from ask_sdk_core.handler_input import HandlerInput
 from ask_sdk_core.utils import get_slot_value_v2
@@ -16,6 +17,8 @@ from plexapi.exceptions import NotFound
 
 from . import config
 from . import prompts
+from . import search_aliases
+from .unicode_normalizer import get_normalizer
 
 class Controller:
     """
@@ -733,39 +736,20 @@ class Controller:
         if response is not None:
             return response
 
-        # Search for the artist
-        try:
-            artist_results = self.section.searchArtists(title=artist.value)
-        except Exception as exception:
-            speak_output = data[prompts.PMS_ARTIST_SEARCH_ERROR].format(artist.value)
-            self.logger.error(exception)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+        # Search for the artist (deterministic resolution)
+        resolution = self.resolve_artist(artist.value)
+        if resolution["status"] == "match":
+            return self._play_music_by_resolved_artist(resolution["candidates"][0])
+        if resolution["status"] == "multiple":
+            return self._build_selection_response(
+                entity_type="artist",
+                query=artist.value,
+                candidates=resolution["candidates"],
+                continuation={"action": "play_music_by_artist"},
+            )
 
-        if len(artist_results) == 0:
-            speak_output = data[prompts.PMS_ARTIST_SEARCH_EMPTY].format(artist.value)
-            self.logger.error(speak_output)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
-
-        # Get a list the popular tracks by the artist
-        plex_track_list = artist_results[0].popularTracks()
-        if len(plex_track_list) == 0:
-            # No popular tracks, so look for any tracks
-            plex_track_list = artist_results[0].tracks()
-            if len(plex_track_list) == 0:
-                speak_output = data[prompts.PMS_TRACKS_SEARCH_EMPTY]
-                return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
-
-        self.clear_playlist()
-        self.add_plex_tracks(plex_track_list)
-
-        playlist_name = data[prompts.PMS_PLNAME_MUSIC_BY_ARTIST].format(artist.value)
-        self.set_playlist_name(playlist_name)
-        speak_output = data[prompts.PMS_PLAYING].format(playlist_name)
-
-        self.handler_input.response_builder.speak(speak_output)
-        self.logger.info(speak_output)
-        return self.start_playback()
-
+        # not_found: diagnostische Fehlermeldung mit dem empfangenen Slotwert
+        return self._build_not_found_response(query=artist.value, entity_label="Künstler")
 
     def play_song_by_artist (self) -> Response:
         """
@@ -796,41 +780,20 @@ class Controller:
         if response is not None:
             return response
 
-        # Search for the artist
-        try:
-            artist_results = self.section.searchArtists(title=artist.value)
-        except Exception as exception:
-            speak_output = data[prompts.PMS_ARTIST_SEARCH_ERROR].format(artist.value)
-            self.logger.error(exception)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+        # Search for the artist (deterministic resolution)
+        resolution = self.resolve_artist(artist.value)
+        if resolution["status"] == "match":
+            return self._play_song_by_resolved_artist(resolution["candidates"][0], song.value)
+        if resolution["status"] == "multiple":
+            return self._build_selection_response(
+                entity_type="artist_for_song",
+                query=artist.value,
+                candidates=resolution["candidates"],
+                continuation={"action": "play_song_by_artist", "song": song.value},
+            )
 
-        if len(artist_results) == 0:
-            speak_output = data[prompts.PMS_ARTIST_SEARCH_EMPTY].format(artist.value)
-            self.logger.error(speak_output)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
-
-        # Search for the song
-        try:
-            plex_track = artist_results[0].track(song.value)
-        except NotFound  as exception:
-            speak_output = data[prompts.PMS_SONG_SEARCH_ERROR].format(song=song.value, artist=artist.value)
-            self.logger.error(exception)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
-        except Exception as exception:
-            speak_output = data[prompts.PMS_SONG_SEARCH_ERROR].format(song=song.value, artist=artist.value)
-            self.logger.error(exception)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
-
-        self.clear_playlist()
-        self.add_plex_track(plex_track)
-
-        playlist_name = data[prompts.PMS_PLNAME_SONG].format(song=song.value, artist=artist.value)
-        self.set_playlist_name(playlist_name)
-        speak_output = data[prompts.PMS_PLAYING].format(playlist_name)
-
-        self.handler_input.response_builder.speak(speak_output)
-        self.logger.info(speak_output)
-        return self.start_playback()
+        # not_found: diagnostische Fehlermeldung mit dem empfangenen Slotwert
+        return self._build_not_found_response(query=artist.value, entity_label="Künstler")
 
 
     def play_album_by_artist (self) -> Response:
@@ -862,41 +825,20 @@ class Controller:
         if response is not None:
             return response
 
-        # Search for the artist
-        try:
-            artist_results = self.section.searchArtists(title=artist.value)
-        except Exception as exception:
-            speak_output = data[prompts.PMS_ARTIST_SEARCH_ERROR].format(artist.value)
-            self.logger.error(exception)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+        # Search for the artist (deterministic resolution)
+        resolution = self.resolve_artist(artist.value)
+        if resolution["status"] == "match":
+            return self._play_album_by_resolved_artist(resolution["candidates"][0], album.value)
+        if resolution["status"] == "multiple":
+            return self._build_selection_response(
+                entity_type="artist_for_album",
+                query=artist.value,
+                candidates=resolution["candidates"],
+                continuation={"action": "play_album_by_artist", "album": album.value},
+            )
 
-        if len(artist_results) == 0:
-            speak_output = data[prompts.PMS_ARTIST_SEARCH_EMPTY].format(artist.value)
-            self.logger.error(speak_output)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
-
-        # Search for the album
-        try:
-            plex_track_list = artist_results[0].album(album.value)
-        except NotFound  as exception:
-            speak_output = data[prompts.PMS_ALBUM_SEARCH_EMPTY].format(album=album.value, artist=artist.value)
-            self.logger.error(exception)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
-        except Exception as exception:
-            speak_output = data[prompts.PMS_ALBUM_SEARCH_ERROR].format(album.value, artist=artist.value)
-            self.logger.error(exception)
-            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
-
-        self.clear_playlist()
-        self.add_plex_tracks(plex_track_list)
-
-        playlist_name = data[prompts.PMS_PLNAME_ALBUM].format(album=album.value, artist=artist.value)
-        self.set_playlist_name(playlist_name)
-        speak_output = data[prompts.PMS_PLAYING].format(playlist_name)
-
-        self.handler_input.response_builder.speak(speak_output)
-        self.logger.info(speak_output)
-        return self.start_playback()
+        # not_found: diagnostische Fehlermeldung mit dem empfangenen Slotwert
+        return self._build_not_found_response(query=artist.value, entity_label="Künstler")
 
 
     def play_music_by_genre (self) -> Response:
@@ -980,25 +922,553 @@ class Controller:
         if response is not None:
             return response
 
-        # Search for the playlist
-        try:
-            plex_track_list =  self.section.playlist(title=playlist.value)
-        except NotFound  as exception:
+        # Search for the playlist (Unicode-Varianten + Aliasbereich "playlists")
+        plex_playlist = self._resolve_playlist(playlist.value)
+        if plex_playlist is None:
             speak_output = data[prompts.PMS_PLAYLIST_SEARCH_EMPTY].format(playlist.value)
-            self.logger.error(exception)
+            self.logger.error(speak_output)
             return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
-        except Exception as exception:
-            speak_output = data[prompts.PMS_PLAYLIST_SEARCH_ERROR].format(playlist.value)
-            self.logger.error(exception)
+
+        # Defensive Prüfung: Playlist-Objekt oder Track-Liste
+        if hasattr(plex_playlist, "items"):
+            playlist_title = plex_playlist.title
+            try:
+                plex_track_list = plex_playlist.items()
+            except Exception as exception:
+                speak_output = data[prompts.PMS_PLAYLIST_SEARCH_ERROR].format(playlist.value)
+                self.logger.error(exception)
+                return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+        else:
+            playlist_title = playlist.value
+            plex_track_list = plex_playlist
+
+        if len(plex_track_list) == 0:
+            speak_output = data[prompts.PMS_PLAYLIST_SEARCH_EMPTY].format(playlist.value)
+            self.logger.error(speak_output)
             return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
 
         self.clear_playlist()
         self.add_plex_tracks(plex_track_list)
 
-        playlist_name = data[prompts.PMS_PLNAME_PLAYLIST].format(playlist.value)
+        playlist_name = data[prompts.PMS_PLNAME_PLAYLIST].format(playlist_title)
         self.set_playlist_name(playlist_name)
         speak_output = data[prompts.PMS_PLAYING].format(playlist_name)
 
         self.handler_input.response_builder.speak(speak_output)
         self.logger.info(speak_output)
         return self.start_playback()
+
+#
+# Deterministic search resolution
+#
+    def _artist_candidate(self, plex_artist) -> dict:
+        """
+        Erzeugt das Kandidatenformat für einen Plex-Künstler.
+
+        Args:
+            plex_artist: Plex-Künstlerobjekt.
+
+        Returns:
+            Dict mit "rating_key" (Plex-ID) und "name" (tatsächlicher Plex-Name).
+        """
+        return {
+            "rating_key": str(plex_artist.ratingKey),
+            "name": plex_artist.title,
+        }
+
+    def resolve_artist(self, query: str) -> dict:
+        """
+        Löst einen Künstlernamen deterministisch gegen Plex auf.
+
+        Suchreihenfolge:
+        1. Exakte Plex-Suche mit dem unveränderten Query (casefold-Vergleich).
+        2. Alias aus search_aliases.json (Rohwert + normalisierte Leerzeichen),
+           Aliasziel wird gegen tatsächlich vorhandene Plex-Künstler validiert.
+        3. Vergleichsschlüssel über alle Plex-Künstler (get_comparison_key()).
+
+        Es gibt keine Teilstring-Suche und kein Fuzzy Matching. Mehrere
+        plausible Treffer werden als Kandidaten zurückgegeben.
+
+        Returns:
+            Dict mit "status" ("match" | "multiple" | "not_found"),
+            "query", "match_source" ("exact" | "alias" | "normalized" | None)
+            und "candidates" (Liste von Kandidaten-Dicts).
+        """
+        result = {
+            "status": "not_found",
+            "query": query,
+            "match_source": None,
+            "candidates": [],
+        }
+
+        if not query or not query.strip():
+            return result
+
+        # 1. Exakte Plex-Suche mit dem unveränderten Query
+        try:
+            exact_results = self.section.searchArtists(title=query)
+        except Exception as exception:
+            self.logger.error("Fehler bei der exakten Künstlersuche für '%s': %s", query, exception)
+            exact_results = []
+
+        exact_matches = [
+            artist for artist in exact_results
+            if str(artist.title).casefold() == query.casefold()
+        ]
+        if len(exact_matches) == 1:
+            result["status"] = "match"
+            result["match_source"] = "exact"
+            result["candidates"] = [self._artist_candidate(exact_matches[0])]
+            return result
+        if len(exact_matches) > 1:
+            result["status"] = "multiple"
+            result["match_source"] = "exact"
+            result["candidates"] = [self._artist_candidate(artist) for artist in exact_matches]
+            return result
+
+        # 2. Alias nachschlagen (Rohwert + normalisierte Leerzeichen)
+        aliases = search_aliases.get_aliases()
+        artist_aliases = aliases.get("artists", {})
+        alias_target = None
+        for alias_key in (query.casefold(), " ".join(query.split()).casefold()):
+            if alias_key in artist_aliases:
+                alias_target = artist_aliases[alias_key]
+                break
+
+        if alias_target:
+            try:
+                alias_results = self.section.searchArtists(title=alias_target)
+            except Exception as exception:
+                self.logger.error("Fehler bei der Alias-Künstlersuche für '%s': %s", alias_target, exception)
+                alias_results = []
+
+            alias_matches = [
+                artist for artist in alias_results
+                if str(artist.title).casefold() == alias_target.casefold()
+            ]
+            if len(alias_matches) == 1:
+                result["status"] = "match"
+                result["match_source"] = "alias"
+                result["candidates"] = [self._artist_candidate(alias_matches[0])]
+                return result
+            if len(alias_matches) > 1:
+                result["status"] = "multiple"
+                result["match_source"] = "alias"
+                result["candidates"] = [self._artist_candidate(artist) for artist in alias_matches]
+                return result
+
+        # 3. Alle Plex-Künstler laden und Vergleichsschlüssel vergleichen.
+        #    Hinweis: Dieser Schritt lädt die gesamte Künstlerliste und kann
+        #    bei sehr großen Bibliotheken zeitaufwändig sein. Er greift nur,
+        #    wenn die exakte Suche und die Alias-Auflösung keinen Treffer
+        #    ergeben haben.
+        try:
+            all_artists = self.section.searchArtists()
+        except Exception as exception:
+            self.logger.error("Fehler beim Laden aller Künstler: %s", exception)
+            all_artists = []
+
+        normalizer = get_normalizer()
+        normalized_names = normalizer.get_exact_normalized_matches(
+            query, [str(artist.title) for artist in all_artists]
+        )
+        if normalized_names:
+            candidates = [
+                self._artist_candidate(artist)
+                for artist in all_artists
+                if str(artist.title) in normalized_names
+            ]
+            if len(candidates) == 1:
+                result["status"] = "match"
+                result["match_source"] = "normalized"
+                result["candidates"] = candidates
+                return result
+            if len(candidates) > 1:
+                result["status"] = "multiple"
+                result["match_source"] = "normalized"
+                result["candidates"] = candidates
+                return result
+
+        return result
+
+    def _build_selection_response(self, entity_type: str, query: str, candidates: list, continuation: dict) -> Response:
+        """
+        Baut die nummerierte Auswahlantwort (Sprache + SimpleCard) und speichert
+        den Auswahlzustand in den Session-Attributen.
+
+        Args:
+            entity_type: Art der Entität ("artist", "artist_for_song", ...).
+            query: Vom Nutzer gesprochener Rohwert.
+            candidates: Liste von Kandidaten-Dicts (höchstens drei werden genannt).
+            continuation: Dict mit "action" und ggf. "song"/"album".
+        """
+        data = self.handler_input.attributes_manager.request_attributes["_"]
+
+        session_attr = self.handler_input.attributes_manager.session_attributes
+        session_attr["pending_selection"] = {
+            "entity_type": entity_type,
+            "query": query,
+            "continuation": continuation,
+            "candidates": candidates,
+        }
+
+        # Höchstens drei Kandidaten vorlesen
+        spoken_candidates = candidates[:3]
+        count = len(spoken_candidates)
+
+        if count == 1:
+            prompt_text = data[prompts.SEARCH_SELECTION_PROMPT_ONE]
+        elif count == 2:
+            prompt_text = data[prompts.SEARCH_SELECTION_PROMPT_TWO]
+        else:
+            prompt_text = data[prompts.SEARCH_SELECTION_PROMPT_THREE]
+
+        parts = [data[prompts.SEARCH_MULTIPLE_ARTISTS].format(count=self._number_word(count))]
+        for index, candidate in enumerate(spoken_candidates, start=1):
+            parts.append(data[prompts.SEARCH_SELECTION_ITEM].format(
+                number=self._number_word(index), name=candidate["name"]))
+        parts.append(prompt_text)
+        speak_output = " ".join(parts)
+
+        # SimpleCard mit derselben nummerierten Liste
+        card_lines = [
+            data.get(prompts.SEARCH_CARD_UNDERSTOOD, "Verstanden: {query}").format(query=query)
+        ]
+        for index, candidate in enumerate(spoken_candidates, start=1):
+            card_lines.append("{}. {}".format(index, candidate["name"]))
+        card_lines.append(prompt_text)
+        card = SimpleCard(
+            title=data.get(prompts.SEARCH_CARD_TITLE_SELECTION, "Mein Plex – Auswahl"),
+            content="\n".join(card_lines),
+        )
+
+        self.handler_input.response_builder.speak(speak_output).ask(speak_output).set_card(card)
+        self.logger.info(speak_output)
+        return self.handler_input.response_builder.response
+
+    def _build_not_found_response(self, query: str, entity_label: str) -> Response:
+        """
+        Baut die diagnostische Fehlermeldung (Sprache + SimpleCard) für einen
+        nicht gefundenen Künstler. Der tatsächlich empfangene Slotwert wird
+        genannt.
+        """
+        data = self.handler_input.attributes_manager.request_attributes["_"]
+        speak_output = data[prompts.SEARCH_ARTIST_NOT_FOUND_DIAGNOSTIC].format(query=query)
+
+        card_lines = [
+            data.get(prompts.SEARCH_CARD_UNDERSTOOD, "Verstanden: {query}").format(query=query),
+            data.get(prompts.SEARCH_CARD_SEARCHED_AS, "Gesucht als: {entity}").format(entity=entity_label),
+            data.get(prompts.SEARCH_CARD_RESULT, "Ergebnis: Kein Treffer"),
+        ]
+        card = SimpleCard(
+            title=data.get(prompts.SEARCH_CARD_TITLE_NOT_FOUND, "Mein Plex – Suche"),
+            content="\n".join(card_lines),
+        )
+
+        self.handler_input.response_builder.speak(speak_output).ask(speak_output).set_card(card)
+        self.logger.info(speak_output)
+        return self.handler_input.response_builder.response
+
+    def _number_word(self, number: int) -> str:
+        """
+        Liefert das lokalisierte Zahlwort für 1-3 (für nummerierte Listen).
+        """
+        data = self.handler_input.attributes_manager.request_attributes["_"]
+        key = {
+            1: prompts.SEARCH_NUMBER_ONE,
+            2: prompts.SEARCH_NUMBER_TWO,
+            3: prompts.SEARCH_NUMBER_THREE,
+        }.get(number)
+        if key:
+            return data.get(key, str(number))
+        return str(number)
+
+    def _load_artist_by_rating_key(self, rating_key: str):
+        """
+        Lädt einen Plex-Künstler ausschließlich über seine Plex-ID (ratingKey).
+        Es findet keine Namenssuche statt.
+        """
+        try:
+            return self.plex_server.fetchItem(int(rating_key))
+        except Exception as exception:
+            self.logger.error("Fehler beim Laden des Künstlers mit ratingKey %s: %s", rating_key, exception)
+            return None
+
+    def _play_music_by_resolved_artist(self, candidate: dict) -> Response:
+        """
+        Spielt die Musik eines bereits aufgelösten Künstlers.
+
+        Der Künstler wird über seine Plex-ID geladen. Für Playlistname und
+        Erfolgsansage wird der tatsächliche Plex-Name verwendet.
+        """
+        data = self.handler_input.attributes_manager.request_attributes["_"]
+        plex_artist = self._load_artist_by_rating_key(candidate["rating_key"])
+        if plex_artist is None:
+            speak_output = data[prompts.PMS_ARTIST_SEARCH_ERROR].format(candidate["name"])
+            self.logger.error(speak_output)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        try:
+            plex_track_list = plex_artist.popularTracks()
+        except Exception as exception:
+            self.logger.error("Fehler beim Laden der beliebten Tracks von %s: %s", plex_artist.title, exception)
+            plex_track_list = []
+
+        if len(plex_track_list) == 0:
+            # No popular tracks, so look for any tracks
+            try:
+                plex_track_list = plex_artist.tracks()
+            except Exception as exception:
+                self.logger.error("Fehler beim Laden der Tracks von %s: %s", plex_artist.title, exception)
+                plex_track_list = []
+
+        if len(plex_track_list) == 0:
+            speak_output = data[prompts.PMS_TRACKS_SEARCH_EMPTY]
+            self.logger.error(speak_output)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        self.clear_playlist()
+        self.add_plex_tracks(plex_track_list)
+
+        playlist_name = data[prompts.PMS_PLNAME_MUSIC_BY_ARTIST].format(plex_artist.title)
+        self.set_playlist_name(playlist_name)
+        speak_output = data[prompts.SEARCH_PLAYING_ARTIST].format(artist=plex_artist.title)
+
+        self.handler_input.response_builder.speak(speak_output)
+        self.logger.info(speak_output)
+        return self.start_playback()
+
+    def _find_track_in_artist(self, plex_artist, song: str):
+        """
+        Sucht einen Song ausschließlich innerhalb eines Künstlers.
+
+        Zuerst wird der Aliasbereich "songs" geprüft, danach die bestehenden
+        Unicode-/Umlaut-Varianten. Es gibt keine globale Songsuche.
+        """
+        aliases = search_aliases.get_aliases()
+        song_aliases = aliases.get("songs", {})
+        alias_target = None
+        for alias_key in (song.casefold(), " ".join(song.split()).casefold()):
+            if alias_key in song_aliases:
+                alias_target = song_aliases[alias_key]
+                break
+
+        if alias_target:
+            try:
+                return plex_artist.track(alias_target)
+            except NotFound:
+                pass
+            except Exception as exception:
+                self.logger.error("Fehler bei der Song-Aliassuche für '%s': %s", alias_target, exception)
+                return None
+
+        normalizer = get_normalizer()
+        for variant in normalizer.get_search_variants(song):
+            try:
+                return plex_artist.track(variant)
+            except NotFound:
+                continue
+            except Exception as exception:
+                self.logger.error("Fehler bei der Songsuche für '%s': %s", variant, exception)
+                return None
+        return None
+
+    def _play_song_by_resolved_artist(self, candidate: dict, song: str) -> Response:
+        """
+        Spielt einen Song innerhalb eines bereits aufgelösten Künstlers.
+        """
+        data = self.handler_input.attributes_manager.request_attributes["_"]
+        plex_artist = self._load_artist_by_rating_key(candidate["rating_key"])
+        if plex_artist is None:
+            speak_output = data[prompts.PMS_ARTIST_SEARCH_ERROR].format(candidate["name"])
+            self.logger.error(speak_output)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        plex_track = self._find_track_in_artist(plex_artist, song)
+        if plex_track is None:
+            speak_output = data[prompts.PMS_SONG_SEARCH_EMPTY].format(song=song, artist=plex_artist.title)
+            self.logger.error(speak_output)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        self.clear_playlist()
+        self.add_plex_track(plex_track)
+
+        playlist_name = data[prompts.PMS_PLNAME_SONG].format(song=plex_track.title, artist=plex_artist.title)
+        self.set_playlist_name(playlist_name)
+        speak_output = data[prompts.PMS_PLAYING].format(playlist_name)
+
+        self.handler_input.response_builder.speak(speak_output)
+        self.logger.info(speak_output)
+        return self.start_playback()
+
+    def _find_album_in_artist(self, plex_artist, album: str):
+        """
+        Sucht ein Album ausschließlich innerhalb eines Künstlers.
+
+        Zuerst wird der Aliasbereich "albums" geprüft, danach die bestehenden
+        Unicode-/Umlaut-Varianten.
+        """
+        aliases = search_aliases.get_aliases()
+        album_aliases = aliases.get("albums", {})
+        alias_target = None
+        for alias_key in (album.casefold(), " ".join(album.split()).casefold()):
+            if alias_key in album_aliases:
+                alias_target = album_aliases[alias_key]
+                break
+
+        if alias_target:
+            try:
+                return plex_artist.album(alias_target)
+            except NotFound:
+                pass
+            except Exception as exception:
+                self.logger.error("Fehler bei der Album-Aliassuche für '%s': %s", alias_target, exception)
+                return None
+
+        normalizer = get_normalizer()
+        for variant in normalizer.get_search_variants(album):
+            try:
+                return plex_artist.album(variant)
+            except NotFound:
+                continue
+            except Exception as exception:
+                self.logger.error("Fehler bei der Albumsuche für '%s': %s", variant, exception)
+                return None
+        return None
+
+    def _play_album_by_resolved_artist(self, candidate: dict, album: str) -> Response:
+        """
+        Spielt ein Album innerhalb eines bereits aufgelösten Künstlers.
+        """
+        data = self.handler_input.attributes_manager.request_attributes["_"]
+        plex_artist = self._load_artist_by_rating_key(candidate["rating_key"])
+        if plex_artist is None:
+            speak_output = data[prompts.PMS_ARTIST_SEARCH_ERROR].format(candidate["name"])
+            self.logger.error(speak_output)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        plex_album = self._find_album_in_artist(plex_artist, album)
+        if plex_album is None:
+            speak_output = data[prompts.PMS_ALBUM_SEARCH_EMPTY].format(album=album, artist=plex_artist.title)
+            self.logger.error(speak_output)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        try:
+            plex_track_list = plex_album.tracks()
+        except Exception as exception:
+            speak_output = data[prompts.PMS_ALBUM_SEARCH_ERROR].format(album, plex_artist.title)
+            self.logger.error(exception)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        if len(plex_track_list) == 0:
+            speak_output = data[prompts.PMS_ALBUM_SEARCH_EMPTY].format(album=album, artist=plex_artist.title)
+            self.logger.error(speak_output)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        self.clear_playlist()
+        self.add_plex_tracks(plex_track_list)
+
+        playlist_name = data[prompts.PMS_PLNAME_ALBUM].format(album=plex_album.title, artist=plex_artist.title)
+        self.set_playlist_name(playlist_name)
+        speak_output = data[prompts.PMS_PLAYING].format(playlist_name)
+
+        self.handler_input.response_builder.speak(speak_output)
+        self.logger.info(speak_output)
+        return self.start_playback()
+
+    def _resolve_playlist(self, query: str):
+        """
+        Löst eine Playlist deterministisch auf (Unicode-Varianten + Alias).
+
+        Playlists werden nur mit Playlists verglichen.
+        """
+        aliases = search_aliases.get_aliases()
+        playlist_aliases = aliases.get("playlists", {})
+        alias_target = None
+        for alias_key in (query.casefold(), " ".join(query.split()).casefold()):
+            if alias_key in playlist_aliases:
+                alias_target = playlist_aliases[alias_key]
+                break
+
+        normalizer = get_normalizer()
+        variants = normalizer.get_search_variants(query)
+        if alias_target:
+            variants = [alias_target] + variants
+
+        for variant in variants:
+            try:
+                result = self.section.playlist(title=variant)
+                if result is None:
+                    continue
+                # Defensive Prüfung: PlexAPI liefert je nach Version ein
+                # Playlist-Objekt oder direkt eine Track-Liste.
+                if hasattr(result, "items"):
+                    return result
+                if isinstance(result, list):
+                    return result
+                self.logger.error("Unerwarteter Rückgabetyp der Playlistsuche für '%s': %s",
+                                  variant, type(result))
+                return None
+            except NotFound:
+                continue
+            except Exception as exception:
+                self.logger.error("Fehler bei der Playlistsuche für '%s': %s", variant, exception)
+                return None
+        return None
+
+    def continue_after_selection(self, selection_index: int) -> Response:
+        """
+        Setzt eine Aktion nach nummerierter Auswahl fort.
+
+        Der gewählte Kandidat wird ausschließlich über seine Plex-ID
+        (ratingKey) geladen – es findet keine erneute Namenssuche statt.
+        """
+        data = self.handler_input.attributes_manager.request_attributes["_"]
+        session_attr = self.handler_input.attributes_manager.session_attributes
+        pending = session_attr.get("pending_selection")
+
+        if not pending:
+            speak_output = data[prompts.SEARCH_SELECTION_MISSING]
+            self.logger.info(speak_output)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        candidates = pending.get("candidates", [])
+        if selection_index < 1 or selection_index > len(candidates):
+            speak_output = data[prompts.SEARCH_SELECTION_INVALID].format(
+                first=self._number_word(1), last=self._number_word(len(candidates)))
+            self.logger.info(speak_output)
+            return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        candidate = candidates[selection_index - 1]
+        continuation = pending.get("continuation", {})
+        action = continuation.get("action")
+
+        # Auswahlzustand löschen, bevor die Aktion fortgesetzt wird
+        session_attr.pop("pending_selection", None)
+
+        if action == "play_music_by_artist":
+            return self._play_music_by_resolved_artist(candidate)
+        if action == "play_song_by_artist":
+            return self._play_song_by_resolved_artist(candidate, continuation.get("song"))
+        if action == "play_album_by_artist":
+            return self._play_album_by_resolved_artist(candidate, continuation.get("album"))
+
+        speak_output = data[prompts.SKILL_EXCEPTION]
+        self.logger.error("Unbekannte continuation action: %s", action)
+        return self.handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+    def set_playlist_name(self, name: str) -> None:
+        """
+        Sets the playlist name in the persistent attributes.
+
+        Args:
+            name (str): The name of the playlist to be set.
+
+        Returns:
+            None
+        """
+
+        self.logger.debug('In set_playlist_name()')
+        persistence_attr = self.handler_input.attributes_manager.persistent_attributes
+        playback_info = persistence_attr.get("playback_info")
+        playback_info["playlist_name"] = name

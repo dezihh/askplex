@@ -7,7 +7,7 @@ import boto3
 from ask_sdk_core.dispatch_components import AbstractRequestHandler, AbstractRequestInterceptor, AbstractResponseInterceptor, AbstractExceptionHandler
 from ask_sdk_model.interfaces.audioplayer import PlayerActivity
 from ask_sdk_core.handler_input import HandlerInput
-from ask_sdk_core.utils import is_request_type, is_intent_name
+from ask_sdk_core.utils import is_request_type, is_intent_name, get_slot_value_v2
 from ask_sdk_core.skill_builder import CustomSkillBuilder
 
 from ask_sdk_model import Response
@@ -307,6 +307,13 @@ class PausePlaybackHandler(AbstractRequestHandler):
     def handle(self, handler_input: HandlerInput) -> Response:
         # type: (HandlerInput) -> Response
         logger.debug('In PausePlaybackHandler()')
+
+        # Stop/Cancel verwerfen eine offene nummerierte Auswahl
+        if (is_intent_name('AMAZON.StopIntent')(handler_input) or
+                is_intent_name('AMAZON.CancelIntent')(handler_input)):
+            session_attr = handler_input.attributes_manager.session_attributes
+            session_attr.pop("pending_selection", None)
+
         persistence_attr = handler_input.attributes_manager.persistent_attributes
         playback_info = persistence_attr.get("playback_info")
 
@@ -702,6 +709,47 @@ class PlayPlaylistHandler(AbstractRequestHandler):
         return player_controller.play_playlist()
 
 
+class SelectSearchResultHandler(AbstractRequestHandler):
+    """
+    Handler for the 'SelectSearchResult' intent.
+    Continues a numbered selection (pending_selection) from the session
+    attributes. The chosen candidate is always loaded by its Plex
+    ratingKey – never by a new name search.
+    """
+
+    def can_handle(self, handler_input):
+        # type: (HandlerInput) -> bool
+        return is_intent_name('SelectSearchResult')(handler_input)
+
+    def handle(self, handler_input):
+        # type: (HandlerInput) -> Response
+        logger.debug('In SelectSearchResultHandler()')
+        data = handler_input.attributes_manager.request_attributes["_"]
+        session_attr = handler_input.attributes_manager.session_attributes
+
+        # No open selection
+        if not session_attr.get("pending_selection"):
+            speak_output = data[prompts.SEARCH_SELECTION_MISSING]
+            logger.info(speak_output)
+            return handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        # Slot missing or not a valid number
+        selection = get_slot_value_v2(handler_input, 'selection')
+        selection_index = None
+        if selection is not None:
+            try:
+                selection_index = int(selection.value)
+            except (TypeError, ValueError):
+                selection_index = None
+
+        if selection_index is None or selection_index < 1:
+            speak_output = data[prompts.SEARCH_SELECTION_UNPARSABLE]
+            logger.info(speak_output)
+            return handler_input.response_builder.speak(speak_output).ask(speak_output).response
+
+        player_controller = controller.Controller(logger, handler_input)
+        return player_controller.continue_after_selection(selection_index)
+
 #
 # Exception Handers
 #
@@ -873,6 +921,7 @@ sb.add_request_handler(PlayAlbumByArtistHandler())
 sb.add_request_handler(PlaySongByArtistHandler())
 sb.add_request_handler(PlayMusicByGenreHandler())
 sb.add_request_handler(PlayPlaylistHandler())
+sb.add_request_handler(SelectSearchResultHandler())
 sb.add_exception_handler(CatchAllExceptionHandler())
 # Register Interceptors
 sb.add_global_request_interceptor(LocalizationInterceptor())

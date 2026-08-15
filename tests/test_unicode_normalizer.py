@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Unit tests for Unicode Normalizer
-Run with: python -m pytest test_unicode_normalizer.py -v
+Run with: python -m pytest tests -v
 """
 
 import pytest
-from unicode_normalizer import UnicodeNormalizer, SearchStrategy, get_normalizer
+from askplex.unicode_normalizer import UnicodeNormalizer, SearchStrategy, get_normalizer
 
 
 class TestUnicodeNormalizer:
@@ -223,10 +223,64 @@ class TestGermanUmlauteIntegration:
     def test_umlaute_in_response(self, normalizer):
         """Test that Umlaute are preserved in responses."""
         artist_name = "Die Ärzte"
-        response = f"Wiedergabe von Musik von {artist_name} in AskPlex."
+        response = f"Wiedergabe von Musik von {artist_name} in Mein Plex."
 
         assert "Ärzte" in response
-        assert response == "Wiedergabe von Musik von Die Ärzte in AskPlex."
+        assert response == "Wiedergabe von Musik von Die Ärzte in Mein Plex."
+
+
+class TestComparisonKey:
+    """Tests for the deterministic comparison key."""
+
+    def test_comparison_keys(self):
+        normalizer = UnicodeNormalizer()
+        assert normalizer.get_comparison_key("AC/DC") == "acdc"
+        assert normalizer.get_comparison_key("ACDC") == "acdc"
+        assert normalizer.get_comparison_key("AC DC") == "acdc"
+        assert normalizer.get_comparison_key("A.C.D.C.") == "acdc"
+        assert normalizer.get_comparison_key("AC DC Tribute") == "acdctribute"
+        assert normalizer.get_comparison_key("abcd") == "abcd"
+
+    def test_umlaut_keys_stay_distinct(self):
+        """Die Ärzte and Die Aerzte keep distinct keys."""
+        normalizer = UnicodeNormalizer()
+        assert normalizer.get_comparison_key("Die Ärzte") == "diearzte"
+        assert normalizer.get_comparison_key("Die Aerzte") == "dieaerzte"
+        assert normalizer.get_comparison_key("Die Ärzte") != normalizer.get_comparison_key("Die Aerzte")
+
+    def test_empty_text(self):
+        normalizer = UnicodeNormalizer()
+        assert normalizer.get_comparison_key("") == ""
+        assert normalizer.get_comparison_key(None) == ""
+
+
+class TestExactNormalizedMatches:
+    """Tests for get_exact_normalized_matches."""
+
+    def test_single_match_acdc(self):
+        normalizer = UnicodeNormalizer()
+        matches = normalizer.get_exact_normalized_matches("ACDC", ["AC/DC", "Rammstein"])
+        assert matches == ["AC/DC"]
+
+    def test_multiple_matches_acdc(self):
+        normalizer = UnicodeNormalizer()
+        matches = normalizer.get_exact_normalized_matches("ACDC", ["AC/DC", "AC DC", "Rammstein"])
+        assert matches == ["AC/DC", "AC DC"]
+
+    def test_no_match_abcd(self):
+        normalizer = UnicodeNormalizer()
+        matches = normalizer.get_exact_normalized_matches("abcd", ["AC/DC", "Rammstein"])
+        assert matches == []
+
+    def test_order_is_preserved(self):
+        normalizer = UnicodeNormalizer()
+        candidates = ["Zebra", "AC/DC", "Micky", "AC DC Tribute", "AC DC"]
+        matches = normalizer.get_exact_normalized_matches("ACDC", candidates)
+        assert matches == ["AC/DC", "AC DC"]
+
+    def test_empty_query(self):
+        normalizer = UnicodeNormalizer()
+        assert normalizer.get_exact_normalized_matches("", ["AC/DC"]) == []
 
 
 if __name__ == "__main__":

@@ -181,6 +181,22 @@
           ]
         },
         {
+          "name": "SelectSearchResult",
+          "slots": [
+            {
+              "name": "selection",
+              "type": "AMAZON.NUMBER"
+            }
+          ],
+          "samples": [
+            "{selection}",
+            "Nummer {selection}",
+            "Ich nehme {selection}",
+            "Nimm {selection}",
+            "Spiele Nummer {selection}"
+          ]
+        },
+        {
           "name": "AMAZON.YesIntent",
           "samples": []
         },
