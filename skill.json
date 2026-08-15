@@ -1,46 +1,106 @@
 {
   "manifest": {
+    "publishingInformation": {
+      "locales": {
+        "en-US": {
+          "name": "Mein Plex",
+          "summary": "Play music from your own Plex media server",
+          "description": "Mein Plex is an Alexa music skill which allows you to play music hosted by your own Plex media server on any Alexa device, including multi-room music groups.",
+          "examplePhrases": [
+            "Alexa, play some music on Mein Plex",
+            "Alexa, play rock music on Mein Plex"
+          ],
+          "keywords": ["music", "plex", "media server"]
+        },
+        "de-DE": {
+          "name": "Mein Plex",
+          "summary": "Spiele Musik von deinem eigenen Plex Media Server",
+          "description": "Mein Plex ist ein Alexa-Musik-Skill, mit dem du Musik von deinem eigenen Plex Media Server auf beliebigen Alexa-Geräten abspielen kannst, auch in Multi-Room-Gruppen.",
+          "examplePhrases": [
+            "Alexa, spiele Musik auf Mein Plex",
+            "Alexa, spiele Rockmusik auf Mein Plex"
+          ],
+          "keywords": ["musik", "plex", "medienserver"]
+        }
+      },
+      "isAvailableWorldwide": false,
+      "distributionCountries": ["US", "DE"],
+      "category": "STREAMING_SERVICE"
+    },
     "apis": {
-      "custom": {
+      "music": {
         "endpoint": {
-          "sourceDir": "lambda/py",
-          "uri": "Mein Plex"
+          "uri": ""
+        },
+        "locales": {
+          "en-US": {
+            "features": [
+              { "name": "EXPLICIT_LANGUAGE_FILTER" }
+            ],
+            "aliases": [
+              { "name": "mein plex" }
+            ],
+            "promptName": "Mein Plex"
+          },
+          "de-DE": {
+            "features": [
+              { "name": "EXPLICIT_LANGUAGE_FILTER" }
+            ],
+            "aliases": [
+              { "name": "mein plex" }
+            ],
+            "promptName": "Mein Plex"
+          }
         },
         "interfaces": [
           {
-            "type": "AUDIO_PLAYER"
+            "namespace": "Alexa.Media.Search",
+            "requests": [
+              { "name": "GetPlayableContent" }
+            ],
+            "version": "1.0"
+          },
+          {
+            "namespace": "Alexa.Media.Playback",
+            "requests": [
+              { "name": "Initiate" },
+              { "name": "Reinitiate" }
+            ],
+            "version": "1.0"
+          },
+          {
+            "namespace": "Alexa.Media.PlayQueue",
+            "requests": [
+              { "name": "GetItem" }
+            ],
+            "version": "1.0"
+          },
+          {
+            "namespace": "Alexa.Audio.PlayQueue",
+            "requests": [
+              { "name": "GetNextItem" },
+              { "name": "GetPreviousItem" },
+              { "name": "JumpToItem" }
+            ],
+            "version": "1.0"
           }
         ]
       }
     },
-    "manifestVersion": "1.0",
-    "publishingInformation": {
-      "distributionCountries": [],
-      "isAvailableWorldwide": true,
-      "locales": {
-        "en-US": {
-          "description": "Mein Plex is an Alexa skill which allows you to play music hosted by your plex media server",
-          "examplePhrases": [
-            "Alexa open Mein Plex",
-            "Alexa ask Mein Plex to play some music",
-            "Alexa ask Mein Plex to play rock music"
-          ],
-          "keywords": [],
-          "name": "Mein Plex",
-          "summary": "Skill for playing music from your media server"
-        },
-        "es-US": {
-          "description": "Mein Plex es una skill de alexa que permite reproducir música almacenada en tu servidor de medios plex",
-          "examplePhrases": [
-            "Alexa abre Mein Plex",
-            "Alexa pide a Mein Plex pon música",
-            "Alexa pide a Mein Plex pon música rock"
-          ],
-          "keywords": [],
-          "name": "Mein Plex",
-          "summary": "Sample Short Description"
-        }
+    "events": {
+      "subscriptions": [
+        { "eventName": "SKILL_ENABLED" },
+        { "eventName": "SKILL_DISABLED" },
+        { "eventName": "SKILL_ACCOUNT_LINKED" },
+        { "eventName": "AUDIO_ITEM_PLAYBACK_STARTED" },
+        { "eventName": "AUDIO_ITEM_PLAYBACK_FINISHED" },
+        { "eventName": "AUDIO_ITEM_PLAYBACK_STOPPED" },
+        { "eventName": "AUDIO_ITEM_PLAYBACK_FAILED" }
+      ],
+      "endpoint": {
+        "uri": ""
       }
-    }
+    },
+    "manifestVersion": "1.0"
   }
 }
