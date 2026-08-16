@@ -12,43 +12,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install ASK CLI
-        run: npm install -g ask-cli
-
-      - name: Configure ASK CLI
+      - name: Restore ASK CLI auth files
         run: |
-          mkdir -p ~/.ask
-          cat > ~/.ask/ask_cli_config <<EOF
-          {
-            "token": {
-              "access_token": "${{ secrets.ASK_ACCESS_TOKEN }}",
-              "refresh_token": "${{ secrets.ASK_REFRESH_TOKEN }}"
-            }
-          }
-          EOF
-          cat > ~/.ask/cli_config <<EOF
-          {
-            "profiles": {
-              "default": {
-                "vendor_id": "${{ secrets.ASK_VENDOR_ID }}",
-                "token": {
-                  "access_token": "${{ secrets.ASK_ACCESS_TOKEN }}",
-                  "refresh_token": "${{ secrets.ASK_REFRESH_TOKEN }}"
-                }
-              }
-            }
-          }
-          EOF
+          mkdir -p ~/.ask/scripts
+          cp .github/ask/git-credential-helper ~/.ask/scripts/git-credential-helper
+          cp .github/ask/ask-pre-push ~/.ask/scripts/ask-pre-push
+          chmod +x ~/.ask/scripts/git-credential-helper ~/.ask/scripts/ask-pre-push
+          echo "${{ secrets.ASK_AUTH_INFO }}" | base64 -d > ~/.ask/auth_info
+          echo "${{ secrets.ASK_CLI_CONFIG }}" | base64 -d > ~/.ask/cli_config
 
-      - name: Add Alexa-hosted remote
+      - name: Add Alexa-hosted remote with credential helper
         run: |
           git remote remove alexa 2>/dev/null || true
           git remote add alexa "${{ secrets.ALEXA_HOSTED_REPO_URL }}"
+          git config "credential.https://git-codecommit.us-east-1.amazonaws.com/v1/repos/fbcd5041-3c81-4e6c-9bce-3762fa0226a9".helper ""
+          git config "credential.https://git-codecommit.us-east-1.amazonaws.com/v1/repos/fbcd5041-3c81-4e6c-9bce-3762fa0226a9".helper "!$HOME/.ask/scripts/git-credential-helper default amzn1.ask.skill.fbcd5041-3c81-4e6c-9bce-3762fa0226a9"
+          git config "credential.https://git-codecommit.us-east-1.amazonaws.com/v1/repos/fbcd5041-3c81-4e6c-9bce-3762fa0226a9".UseHttpPath true
 
       - name: Push to Alexa-hosted master branch
         run: |

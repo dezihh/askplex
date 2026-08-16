@@ -70,10 +70,14 @@ bei jedem Push auf `main` automatisch in das Alexa-Repo deployed.
 
    | Secret | Inhalt |
    |---|---|
-   | `ASK_ACCESS_TOKEN` | `access_token` aus `~/.ask/ask_cli_config` |
-   | `ASK_REFRESH_TOKEN` | `refresh_token` aus `~/.ask/ask_cli_config` |
-   | `ASK_VENDOR_ID` | Vendor-ID aus `~/.ask/cli_config` (falls vorhanden) |
+   | `ASK_AUTH_INFO` | `base64 -w0 ~/.ask/auth_info` (LWA-API-Zugangsdaten) |
+   | `ASK_CLI_CONFIG` | `base64 -w0 ~/.ask/cli_config` (OAuth-Tokens) |
    | `ALEXA_HOSTED_REPO_URL` | Git-URL des Alexa-Repos (Schritt 2) |
+
+   Die Helper-Skripte (`git-credential-helper`, `ask-pre-push`) sind im Repo
+   unter `.github/ask/` versioniert und werden von der Action automatisch
+   eingesetzt. Die drei Secrets enthalten die echten Zugangsdaten und dürfen
+   niemals committet werden.
 
 4. Ab jetzt deployt jeder Push auf `main` automatisch in die
    Development-Stage deines Alexa-Skills (entspricht *Deploy* im Code-Tab).
