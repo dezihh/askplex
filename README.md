@@ -10,17 +10,28 @@ Der offizielle Plex-Skill ist nicht in allen Regionen verfügbar – dieser Skil
 
 ### Einrichtung
 
-1. Erstelle deine persönliche Konfiguration aus der Vorlage:
+Das Repo verwendet das **Skill-Package-Format** (Manifest + Interaction Models
+unter `skill-package/`, Lambda-Code unter `lambda/`) – das von Amazon
+dokumentierte Format für den Import aus einem Git-Repo als Alexa-hosted Skill.
+
+1. `lambda/askplex/config.py` ist **versioniert** (leere Vorlage, wie das
+   Original-Repo) und wird beim Import in die Alexa Console mitgezogen.
+   Trage dort deine Daten ein (Server-URL, Token, Name der Musik-Bibliothek):
 
    ```bash
    cp lambda/askplex/config.example.py lambda/askplex/config.py
    ```
 
-2. Trage die Daten deines Plex Media Servers in `lambda/askplex/config.py` ein
-   (Server-URL, Token, Name der Musik-Bibliothek).
+2. **Wichtig:** Beim Alexa-hosted Import musst du die Werte zusätzlich im
+   **Code-Editor der Alexa Developer Console** eintragen – die lokale Datei
+   wird bei `git pull`/`git checkout` mit der leeren Vorlage überschrieben.
+   Enthält die versionierte `config.py` echte Zugangsdaten, niemals committen!
 
-> `config.py` ist in der `.gitignore` ausgenommen und wird durch `git pull` oder
-> `git checkout` niemals überschrieben. Nur `config.example.py` ist als Standardvorlage versioniert.
+3. **Import in der Alexa-Konsole:** *Create Skill* → *Custom* →
+   *Alexa-Hosted (Python)* → *Import skill* → Git-Repo-URL angeben. Danach im
+   Code-Editor `config.py` befüllen, **Deploy** drücken und unter
+   *Interaction Model* → **Build Model** den Invocation Name (`mein plex`)
+   bauen lassen.
 
 ### Testen
 
@@ -69,9 +80,6 @@ Regelfall läuft über den Vergleichsschlüssel.
 
 Ideen für zukünftige Verbesserungen (noch nicht umgesetzt):
 
-- [ ] `de-DE`-Veröffentlichungsinformationen in `skill-package/skill.json` ergänzen (Beschreibung,
-      Beispielsätze, Name „Mein Plex"), damit der Skill für den deutschen Markt
-      zertifiziert werden kann.
 - [ ] Neue Einzel-Intent-Shortcuts: Song ohne Künstler, Album ohne Künstler,
       Musik nach Jahrzehnt, zufällige Wiedergabe einer Playlist.
 - [ ] Natürlichere deutsche Beispielsätze im Interaction Model

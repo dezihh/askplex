@@ -62,6 +62,13 @@ ask deploy
 
 Für das Testen neuer Funktionalität kommen nur **A** oder **B** in Frage.
 
+> **Hinweis (Alexa-hosted):** Wird der Skill direkt als **Alexa-hosted Skill
+> aus dem Git-Repo importiert** (Skill-Package-Format, siehe README), entfällt
+> die eigene Lambda. Änderungen landen dann über den **Code-Editor** der
+> Konsole (Git-Sync + **Deploy**-Button) in der verwalteten Lambda; danach im
+> **Test-Tab** prüfen. Der Skill-Code liegt im Repo unter `lambda/`, das
+> Manifest unter `skill-package/`.
+
 ### Variante A: Zweite Lambda-Funktion
 
 1. In AWS eine neue Lambda-Funktion **`askplex-dev`** anlegen (gleiche Runtime
@@ -99,9 +106,11 @@ den ngrok-URL (Variante B) eintragen.
   produktiver Skill den Playlist-Zustand.
 - **Plex-Zugriff:** Beide Skills können denselben Plex-Server nutzen
   (URL + Token in `config.py`). Plex erlaubt mehrere parallele Clients.
-- **`config.py` ist nicht versioniert:** Sie wird aus
-  `config.example.py` erstellt und enthält die persönlichen Werte. Sie wird
-  bei `git pull` nie überschrieben.
+- **`config.py` ist versioniert (leere Vorlage):** Persönliche Werte (URL,
+  Token, Bibliotheksname) werden lokal in `lambda/askplex/config.py`
+  eingetragen bzw. nach dem Git-Import im **Code-Editor der Alexa-Konsole**
+  gesetzt. Die versionierte Datei darf keine echten Zugangsdaten enthalten –
+  sie wird bei `git pull`/`git checkout` mit der Vorlage überschrieben.
 - **Spracherkennung (NLU) kann lokal nicht simuliert werden** – die
   Slot-Erkennung passiert server-seitig bei Amazon. Deshalb ist der Test-Tab
   der Dev Console der richtige Ort, um neue deutsche Samples zu prüfen.
