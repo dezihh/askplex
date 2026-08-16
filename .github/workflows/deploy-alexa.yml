@@ -12,6 +12,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Restore ASK CLI auth files
         run: |
           mkdir -p ~/.ask/scripts
@@ -28,6 +33,13 @@ jobs:
           git config "credential.https://git-codecommit.us-east-1.amazonaws.com/v1/repos/fbcd5041-3c81-4e6c-9bce-3762fa0226a9".helper ""
           git config "credential.https://git-codecommit.us-east-1.amazonaws.com/v1/repos/fbcd5041-3c81-4e6c-9bce-3762fa0226a9".helper "!$HOME/.ask/scripts/git-credential-helper default amzn1.ask.skill.fbcd5041-3c81-4e6c-9bce-3762fa0226a9"
           git config "credential.https://git-codecommit.us-east-1.amazonaws.com/v1/repos/fbcd5041-3c81-4e6c-9bce-3762fa0226a9".UseHttpPath true
+
+      - name: Merge Alexa-hosted master into local history
+        run: |
+          git config user.email "deploy@github-actions.local"
+          git config user.name "GitHub Actions Deploy"
+          git fetch alexa master
+          git merge --no-edit -X ours alexa/master
 
       - name: Push to Alexa-hosted master branch
         run: |
