@@ -11,6 +11,8 @@ erfolgt über plexapi.
 
 import json
 import os
+import random
+import re
 import time
 import uuid
 
@@ -221,7 +223,6 @@ class AMSController:
         queue_id = str(uuid.uuid4())
         order = list(range(len(track_list)))
         if shuffle:
-            import random
             random.shuffle(order)
 
         queue_data = {
@@ -441,6 +442,7 @@ class AMSController:
         return tracks
 
     def _plex_track_to_dict(self, plex_track) -> Dict:
+        stream_url = re.sub(r"\.m3u8(?=[?&]|$)", ".mp3", plex_track.getStreamURL())
         return {
             "id": str(plex_track.ratingKey),
             "title": plex_track.title,
@@ -448,7 +450,7 @@ class AMSController:
             "artist_art": plex_track.url(plex_track.grandparentArt),
             "album": plex_track.parentTitle,
             "album_art": plex_track.url(plex_track.parentThumb),
-            "uri": plex_track.getStreamURL().replace("m3u8", "mp3"),
+            "uri": stream_url,
             "duration": getattr(plex_track, "duration", None),
         }
 
