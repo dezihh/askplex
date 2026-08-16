@@ -155,3 +155,4 @@ Ideen für zukünftige Verbesserungen (noch nicht umgesetzt):
 
 ### Danksagung
 Dieser Skill wurde von [AskNavidrome](https://github.com/rosskouk/asknavidrome) inspiriert.
+Bump
