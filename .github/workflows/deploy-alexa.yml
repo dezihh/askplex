@@ -51,3 +51,10 @@ jobs:
       - name: Push to Alexa-hosted master branch (force-with-lease)
         run: |
           git push --no-verify --force-with-lease alexa main:master
+
+      - name: Sync Alexa-hosted dev branch with master
+        run: |
+          git fetch alexa dev
+          git checkout -B dev alexa/dev
+          git merge --no-edit --allow-unrelated-histories -X theirs alexa/master
+          git push --no-verify alexa dev:dev
