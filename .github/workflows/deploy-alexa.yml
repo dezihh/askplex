@@ -39,7 +39,7 @@ jobs:
           git config user.email "deploy@github-actions.local"
           git config user.name "GitHub Actions Deploy"
           git fetch alexa master
-          git merge --no-edit -X ours alexa/master
+          git merge --no-edit --allow-unrelated-histories -X ours alexa/master
 
       - name: Push to Alexa-hosted master branch
         run: |
