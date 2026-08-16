@@ -38,6 +38,10 @@ dokumentierte Format für den Import aus einem Git-Repo als Alexa-hosted Skill.
 
 ### Automatisches Deploy per Push (ASK CLI / GitHub Actions)
 
+> **Status:** Dieses Repo ist an den Alexa-Skill **„Mein Plex"** (Alexa-hosted)
+> angebunden. Ein Push auf `main` deployed automatisch in die Development-Stage
+> des Skills (GitHub Action „Deploy to Alexa").
+
 Bei Alexa-hosted Skills läuft der Deploy **nicht** über `ask deploy`,
 sondern über einen `git push` auf den `master`-Branch des von Amazon
 verwalteten Repos (entspricht dem **Deploy**-Button im Code-Tab). Das Repo
