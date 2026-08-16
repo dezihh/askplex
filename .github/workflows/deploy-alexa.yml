@@ -34,13 +34,18 @@ jobs:
           git config "credential.https://git-codecommit.us-east-1.amazonaws.com/v1/repos/fbcd5041-3c81-4e6c-9bce-3762fa0226a9".helper "!$HOME/.ask/scripts/git-credential-helper default amzn1.ask.skill.fbcd5041-3c81-4e6c-9bce-3762fa0226a9"
           git config "credential.https://git-codecommit.us-east-1.amazonaws.com/v1/repos/fbcd5041-3c81-4e6c-9bce-3762fa0226a9".UseHttpPath true
 
-      - name: Merge Alexa-hosted master into local history
+      - name: Preserve Alexa config.py
         run: |
-          git config user.email "deploy@github-actions.local"
-          git config user.name "GitHub Actions Deploy"
           git fetch alexa master
-          git merge --no-edit --allow-unrelated-histories -X ours alexa/master
+          git checkout alexa/master -- lambda/askplex/config.py 2>/dev/null || echo "keine config.py im Alexa-Repo"
+          if git diff --cached --quiet; then
+            echo "config.py unveraendert oder nicht vorhanden"
+          else
+            git config user.email "deploy@github-actions.local"
+            git config user.name "GitHub Actions Deploy"
+            git commit -m "chore: preserve Alexa config.py"
+          fi
 
-      - name: Push to Alexa-hosted master branch
+      - name: Push to Alexa-hosted master branch (force-with-lease)
         run: |
-          git push --no-verify alexa main:master
+          git push --no-verify --force-with-lease alexa main:master
