@@ -33,7 +33,7 @@ Skill bleibt dabei vollständig unberührt.
 ## Schritt 2: Interaction Model übernehmen
 
 Die Interaction Models liegen versioniert im Repo unter
-`interactionModels/custom/` (z. B. `de-DE.json`).
+`skill-package/interactionModels/custom/` (z. B. `de-DE.json`).
 
 **Variante A – ASK CLI (empfohlen):**
 

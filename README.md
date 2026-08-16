@@ -62,7 +62,7 @@ Zum Pflegen der Aliase: `lambda/askplex/search_aliases.json` bearbeiten
 
 Ideen für zukünftige Verbesserungen (noch nicht umgesetzt):
 
-- [ ] `de-DE`-Veröffentlichungsinformationen in `skill.json` ergänzen (Beschreibung,
+- [ ] `de-DE`-Veröffentlichungsinformationen in `skill-package/skill.json` ergänzen (Beschreibung,
       Beispielsätze, Name „Mein Plex"), damit der Skill für den deutschen Markt
       zertifiziert werden kann.
 - [ ] Neue Einzel-Intent-Shortcuts: Song ohne Künstler, Album ohne Künstler,
