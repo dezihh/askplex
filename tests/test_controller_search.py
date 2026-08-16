@@ -14,6 +14,7 @@ import pytest
 
 try:
     from askplex.controller import Controller
+    from askplex.unicode_normalizer import get_normalizer
     CONTROLLER_AVAILABLE = True
 except ImportError:
     Controller = None
@@ -135,14 +136,31 @@ def patch_plex_server(monkeypatch):
 
 
 def _set_section(ctrl, artists_by_title=None, all_artists=None):
-    """Konfiguriert ctrl.section mit einer searchArtists-Mock-Funktion."""
+    """Konfiguriert ctrl.section mit einer searchArtists-Mock-Funktion.
+
+    Die Plex-Suche wird serverseitig über den Vergleichsschlüssel modelliert:
+    searchArtists(title=X) liefert alle Künstler, deren Vergleichsschlüssel den
+    Vergleichsschlüssel von X enthält (toleriert Groß-/Kleinschreibung,
+    Satzzeichen, Leerzeichen und Diakritika – wie die echte Plex-Suche).
+    """
     section = MagicMock()
     artists_by_title = artists_by_title or {}
+    all_artists = list(all_artists or [])
+    normalizer = get_normalizer()
 
     def fake_search_artists(title=None, maxresults=None):
         if title is None:
-            return list(all_artists or [])
-        return list(artists_by_title.get(title, []))
+            return list(all_artists)
+        exact = artists_by_title.get(title)
+        if exact is not None:
+            return list(exact)
+        query_key = normalizer.get_comparison_key(title)
+        if not query_key:
+            return []
+        return [
+            artist for artist in all_artists
+            if query_key in normalizer.get_comparison_key(str(artist.title))
+        ]
 
     section.searchArtists.side_effect = fake_search_artists
     ctrl.section = section
@@ -183,14 +201,14 @@ class TestResolveArtist:
 
     def test_normalized_single_match(self, controller_with_handler):
         ctrl, _ = controller_with_handler
-        acdc = make_artist(123, "AC/DC")
+        artist = make_artist(123, "Mötley Crüe")
         # Keine exakte Suche und kein Alias: Vergleichsschlüssel greift
-        _set_section(ctrl, {}, all_artists=[acdc])
+        _set_section(ctrl, {}, all_artists=[artist])
 
-        result = ctrl.resolve_artist("A.C.D.C.")
+        result = ctrl.resolve_artist("Motley Crue")
         assert result["status"] == "match"
         assert result["match_source"] == "normalized"
-        assert result["candidates"][0]["name"] == "AC/DC"
+        assert result["candidates"][0]["name"] == "Mötley Crüe"
 
     def test_not_found(self, controller_with_handler):
         ctrl, _ = controller_with_handler
@@ -202,16 +220,15 @@ class TestResolveArtist:
 
     def test_multiple_candidates(self, controller_with_handler):
         ctrl, _ = controller_with_handler
-        acdc = make_artist(123, "AC/DC")
-        acdc_spaced = make_artist(789, "AC DC")
-        tribute = make_artist(456, "AC DC Tribute")
-        _set_section(ctrl, {}, all_artists=[acdc, acdc_spaced, tribute])
+        rem_punct = make_artist(123, "R.E.M.")
+        rem_plain = make_artist(789, "R. E. M.")
+        _set_section(ctrl, {}, all_artists=[rem_punct, rem_plain])
 
-        result = ctrl.resolve_artist("ACDC")
+        result = ctrl.resolve_artist("REM")
         assert result["status"] == "multiple"
         assert result["match_source"] == "normalized"
         names = [candidate["name"] for candidate in result["candidates"]]
-        assert names == ["AC/DC", "AC DC"]
+        assert names == ["R.E.M.", "R. E. M."]
 
 
 class TestPlayIntents:
@@ -223,15 +240,15 @@ class TestPlayIntents:
     def test_play_music_by_artist_multi_creates_selection(
             self, controller_with_handler, patch_plex_server, monkeypatch):
         ctrl, handler = controller_with_handler
-        acdc = make_artist(123, "AC/DC")
-        acdc_spaced = make_artist(789, "AC DC")
-        section = _set_section(ctrl, {}, all_artists=[acdc, acdc_spaced])
+        rem_punct = make_artist(123, "R.E.M.")
+        rem_plain = make_artist(789, "R. E. M.")
+        section = _set_section(ctrl, {}, all_artists=[rem_punct, rem_plain])
         patch_plex_server(section)
 
         from askplex import controller as controller_module
         monkeypatch.setattr(
             controller_module, "get_slot_value_v2",
-            lambda handler_input, name: self._make_slots(artist="ACDC").get(name),
+            lambda handler_input, name: self._make_slots(artist="REM").get(name),
         )
 
         ctrl.play_music_by_artist()
@@ -241,53 +258,53 @@ class TestPlayIntents:
         assert len(pending["candidates"]) == 2
         # Sprachausgabe enthält die nummerierte Liste mit Zahlwörtern
         assert "Ich habe zwei passende Künstler gefunden" in handler.response_builder.speech_text
-        assert "Nummer eins: AC/DC" in handler.response_builder.speech_text
-        assert "Nummer zwei: AC DC" in handler.response_builder.speech_text
+        assert "Nummer eins: R.E.M." in handler.response_builder.speech_text
+        assert "Nummer zwei: R. E. M." in handler.response_builder.speech_text
         # SimpleCard mit derselben Liste
         assert handler.response_builder.card is not None
-        assert "1. AC/DC" in handler.response_builder.card.content
+        assert "1. R.E.M." in handler.response_builder.card.content
 
     def test_play_song_by_artist_keeps_song_in_continuation(
             self, controller_with_handler, patch_plex_server, monkeypatch):
         ctrl, handler = controller_with_handler
-        acdc = make_artist(123, "AC/DC")
-        acdc_spaced = make_artist(789, "AC DC")
-        section = _set_section(ctrl, {}, all_artists=[acdc, acdc_spaced])
+        rem_punct = make_artist(123, "R.E.M.")
+        rem_plain = make_artist(789, "R. E. M.")
+        section = _set_section(ctrl, {}, all_artists=[rem_punct, rem_plain])
         patch_plex_server(section)
 
         from askplex import controller as controller_module
         monkeypatch.setattr(
             controller_module, "get_slot_value_v2",
             lambda handler_input, name: self._make_slots(
-                artist="ACDC", song="Thunderstruck").get(name),
+                artist="REM", song="Losing My Religion").get(name),
         )
 
         ctrl.play_song_by_artist()
         pending = handler.attributes_manager.session_attributes.get("pending_selection")
         assert pending is not None
         assert pending["continuation"]["action"] == "play_song_by_artist"
-        assert pending["continuation"]["song"] == "Thunderstruck"
+        assert pending["continuation"]["song"] == "Losing My Religion"
 
     def test_play_album_by_artist_keeps_album_in_continuation(
             self, controller_with_handler, patch_plex_server, monkeypatch):
         ctrl, handler = controller_with_handler
-        acdc = make_artist(123, "AC/DC")
-        acdc_spaced = make_artist(789, "AC DC")
-        section = _set_section(ctrl, {}, all_artists=[acdc, acdc_spaced])
+        rem_punct = make_artist(123, "R.E.M.")
+        rem_plain = make_artist(789, "R. E. M.")
+        section = _set_section(ctrl, {}, all_artists=[rem_punct, rem_plain])
         patch_plex_server(section)
 
         from askplex import controller as controller_module
         monkeypatch.setattr(
             controller_module, "get_slot_value_v2",
             lambda handler_input, name: self._make_slots(
-                artist="ACDC", album="Back in Black").get(name),
+                artist="REM", album="Automatic for the People").get(name),
         )
 
         ctrl.play_album_by_artist()
         pending = handler.attributes_manager.session_attributes.get("pending_selection")
         assert pending is not None
         assert pending["continuation"]["action"] == "play_album_by_artist"
-        assert pending["continuation"]["album"] == "Back in Black"
+        assert pending["continuation"]["album"] == "Automatic for the People"
 
     def test_not_found_mentions_raw_value_and_card(
             self, controller_with_handler, patch_plex_server, monkeypatch):

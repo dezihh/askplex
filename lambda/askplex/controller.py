@@ -1057,37 +1057,40 @@ class Controller:
                 result["candidates"] = [self._artist_candidate(artist) for artist in alias_matches]
                 return result
 
-        # 3. Alle Plex-Künstler laden und Vergleichsschlüssel vergleichen.
-        #    Hinweis: Dieser Schritt lädt die gesamte Künstlerliste und kann
-        #    bei sehr großen Bibliotheken zeitaufwändig sein. Er greift nur,
-        #    wenn die exakte Suche und die Alias-Auflösung keinen Treffer
-        #    ergeben haben.
-        try:
-            all_artists = self.section.searchArtists()
-        except Exception as exception:
-            self.logger.error("Fehler beim Laden aller Künstler: %s", exception)
-            all_artists = []
-
+        # 3. Suchvarianten gezielt gegen Plex suchen und den
+        #    Vergleichsschlüssel prüfen. Anders als früher wird NICHT die
+        #    gesamte Künstlerliste geladen (Timeout-Risiko bei großen
+        #    Bibliotheken und Alexa-hosted Lambdas), sondern für jede
+        #    Suchvariante eine schnelle serverseitige Substring-Suche
+        #    ausgeführt. Die Exaktheit stellt der Vergleichsschlüssel sicher.
         normalizer = get_normalizer()
-        normalized_names = normalizer.get_exact_normalized_matches(
-            query, [str(artist.title) for artist in all_artists]
-        )
-        if normalized_names:
-            candidates = [
-                self._artist_candidate(artist)
-                for artist in all_artists
-                if str(artist.title) in normalized_names
-            ]
-            if len(candidates) == 1:
-                result["status"] = "match"
-                result["match_source"] = "normalized"
-                result["candidates"] = candidates
-                return result
-            if len(candidates) > 1:
-                result["status"] = "multiple"
-                result["match_source"] = "normalized"
-                result["candidates"] = candidates
-                return result
+        matched_artists = []
+        seen_rating_keys = set()
+
+        for variant in normalizer.get_search_variants(query):
+            try:
+                variant_results = self.section.searchArtists(title=variant)
+            except Exception as exception:
+                self.logger.error("Fehler bei der Variantensuche für '%s': %s", variant, exception)
+                variant_results = []
+
+            for artist in variant_results:
+                if normalizer.get_comparison_key(str(artist.title)) == normalizer.get_comparison_key(query):
+                    rating_key = str(artist.ratingKey)
+                    if rating_key not in seen_rating_keys:
+                        seen_rating_keys.add(rating_key)
+                        matched_artists.append(artist)
+
+        if len(matched_artists) == 1:
+            result["status"] = "match"
+            result["match_source"] = "normalized"
+            result["candidates"] = [self._artist_candidate(matched_artists[0])]
+            return result
+        if len(matched_artists) > 1:
+            result["status"] = "multiple"
+            result["match_source"] = "normalized"
+            result["candidates"] = [self._artist_candidate(artist) for artist in matched_artists]
+            return result
 
         return result
 
