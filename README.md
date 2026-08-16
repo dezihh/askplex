@@ -1,17 +1,59 @@
-# AskPlex
+# Mein Plex (Alexa-Skill)
 
-AskPlex ist ein Alexa-Skill, mit dem du Musik von deinem Plex Media Server (PMS) abspielen kannst.
-Der offizielle Plex-Skill ist nicht in allen Regionen verfügbar – dieser Skill dient als Alternative.
+**Mein Plex** ist ein Alexa-Skill, mit dem du Musik von deinem eigenen Plex
+Media Server (PMS) abspielen kannst – per Sprache auf jedem Alexa-Gerät.
 
-> ***Hinweis:*** AskPlex stellt keine Medieninhalte oder Quellen bereit. Du musst deine eigenen Inhalte von einem Plex Media Server bereitstellen. Das AskPlex-Projekt unterstützt keine Raubkopien oder anderweitig illegal beschafften Inhalte.
+Dieses Projekt ist ein **eigenständiger deutscher Hard Fork von
+[AskPlex](https://github.com/andresponte/askplex)**. Der Upstream wird nicht
+mehr übernommen; stattdessen wird der Skill gezielt für deutsche Umgebungen
+weiterentwickelt:
 
-### Dokumentation
-[AskPlex Wiki](https://github.com/andresponte/askplex/wiki)
+- **Deutsch zuerst:** Interaction Models, Sprachausgaben und Hilfe-Texte sind
+  auf `de-DE` ausgelegt (weitere Locales bleiben als Vorlage erhalten).
+- **Deterministische Suche:** Künstler, Songs, Alben und Playlists werden
+  über eine stabile Auflösung gefunden (exakt → Alias → Vergleichsschlüssel),
+  inkl. nummerierter Auswahl bei Mehrdeutigkeit – keine Zufallstreffer.
+- **Robust gegen Alexa-Besonderheiten:** buchstabierte Namen
+  (`a. b. c. d.` → `AB/CD`), Umlaute, Satzzeichen.
+- **Automatisches Deploy:** Ein Push auf `main` aktualisiert den Skill direkt
+  in der Alexa-Konsole (Development-Stage) über GitHub Actions.
 
-### Einrichtung
+> ***Hinweis:*** Mein Plex stellt keine Medieninhalte oder Quellen bereit. Du
+> musst deine eigenen Inhalte von einem Plex Media Server bereitstellen. Das
+> Projekt unterstützt keine Raubkopien oder anderweitig illegal beschafften
+> Inhalte.
 
-Das Repo verwendet das **Skill-Package-Format** (Manifest + Interaction Models
-unter `skill-package/`, Lambda-Code unter `lambda/`) – das von Amazon
+### Einrichtung in der Alexa Developer Console
+
+Der Skill wird als **Alexa-hosted Skill** direkt aus diesem Git-Repo
+importiert. So richtest du ihn ein:
+
+1. Öffne die [Alexa Developer Console](https://developer.amazon.com/alexa/console/ask)
+   und melde dich mit deinem Amazon-Dev-Konto an.
+2. Klicke auf **Create Skill**.
+3. **Skill name:** `Mein Plex` eingeben.
+4. **Default language:** **German (Germany)** auswählen.
+5. **Experience:** `Music & Audio` wählen (bei deutscher Sprache ist nur
+   **Custom** als Modell verfügbar – genau das brauchen wir).
+6. **Hosting:** **Alexa-Hosted (Python)** wählen.
+7. **Import skill** klicken und die Repo-URL angeben:
+   `https://github.com/dezihh/askplex` – **Language: German**.
+   Amazon klont das Repo und legt die Skill-Ressourcen an.
+8. **Invocation Name prüfen (wichtig!):** Der Invocation Name muss **aus
+   zwei Wörtern bestehen** (`mein plex`) – mit nur einem Wort startet der
+   Skill nicht. Unter *Interaction Model → Build* den Invocation Name
+   bestätigen und **Build Model** klicken.
+9. Im **Code**-Tab die Datei `lambda/askplex/config.py` öffnen und deine
+   Plex-Zugangsdaten eintragen (Server-URL, Token, Name der
+   Musik-Bibliothek), dann **Deploy** klicken.
+
+Danach kannst du den Skill im **Test**-Tab ausprobieren:
+„Alexa, starte Mein Plex" bzw. „spiele Musik von … auf Mein Plex".
+
+### Konfiguration (Plex-Zugangsdaten)
+
+Das Repo verwendet das **Skill-Package-Format** (Manifest + Interaction
+Models unter `skill-package/`, Lambda-Code unter `lambda/`) – das von Amazon
 dokumentierte Format für den Import aus einem Git-Repo als Alexa-hosted Skill.
 
 1. Erstelle deine persönliche Konfiguration aus der Vorlage:
@@ -29,12 +71,6 @@ dokumentierte Format für den Import aus einem Git-Repo als Alexa-hosted Skill.
 > versioniert. Beim Alexa-hosted Import (ohne `config.py` im Repo) fällt der
 > Code automatisch auf die leere Vorlage zurück – die echten Werte trägst du
 > dann im Code-Editor der Alexa-Konsole ein.
-
-3. **Import in der Alexa-Konsole:** *Create Skill* → *Custom* →
-   *Alexa-Hosted (Python)* → *Import skill* → Git-Repo-URL angeben. Danach im
-   Code-Editor `config.py` befüllen, **Deploy** drücken und unter
-   *Interaction Model* → **Build Model** den Invocation Name (`mein plex`)
-   bauen lassen.
 
 ### Automatisches Deploy per Push (ASK CLI / GitHub Actions)
 
@@ -140,6 +176,12 @@ Regelfall läuft über den Vergleichsschlüssel.
 
 Ideen für zukünftige Verbesserungen (noch nicht umgesetzt):
 
+- [ ] **Sterne-Wiedergabe (`PlayMusicByRating`)** – „spiele meine 4-Sterne-Songs":
+      Plex übernimmt das Rating aus den MP3-Tags als `userRating` (intern 0–10,
+      5 Sterne = 10), Filter `userRating >= sterns*2`, sortiert nach Rating.
+- [ ] **Mood-Wiedergabe (`PlayMusicByMood`)** – „spiele fröhliche Musik": Filter
+      `mood=` auf den in den MP3-Dateien gepflegten Mood-Tags (Plex liest den
+      ID3-Tag `TMOO`; ohne gepflegte Tags liefert die Suche keine Treffer).
 - [ ] Neue Einzel-Intent-Shortcuts: Song ohne Künstler, Album ohne Künstler,
       Musik nach Jahrzehnt, zufällige Wiedergabe einer Playlist.
 - [ ] Natürlichere deutsche Beispielsätze im Interaction Model
@@ -154,5 +196,8 @@ Ideen für zukünftige Verbesserungen (noch nicht umgesetzt):
       `lambda/askplex/language_strings.json`.
 
 ### Danksagung
-Dieser Skill wurde von [AskNavidrome](https://github.com/rosskouk/asknavidrome) inspiriert.
-Bump
+
+Dieser Skill ist ein **Hard Fork von
+[AskPlex](https://github.com/andresponte/askplex)**, das wiederum von
+[AskNavidrome](https://github.com/rosskouk/asknavidrome) inspiriert wurde.
+Vielen Dank an beide Projekte für die Grundlage.
