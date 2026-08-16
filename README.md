@@ -36,6 +36,55 @@ dokumentierte Format für den Import aus einem Git-Repo als Alexa-hosted Skill.
    *Interaction Model* → **Build Model** den Invocation Name (`mein plex`)
    bauen lassen.
 
+### Automatisches Deploy per Push (ASK CLI / GitHub Actions)
+
+Bei Alexa-hosted Skills läuft der Deploy **nicht** über `ask deploy`,
+sondern über einen `git push` auf den `master`-Branch des von Amazon
+verwalteten Repos (entspricht dem **Deploy**-Button im Code-Tab). Das Repo
+enthält dafür eine [GitHub Action](.github/workflows/deploy-alexa.yml), die
+bei jedem Push auf `main` automatisch in das Alexa-Repo deployed.
+
+**Einmalige Einrichtung:**
+
+1. **ASK CLI authentifizieren** (erzeugt `~/.ask/ask_cli_config` mit den
+   OAuth-Tokens, Browser-Login erforderlich):
+
+   ```bash
+   npm install -g ask-cli
+   ask configure
+   ```
+
+2. **Skill-ID und Alexa-Repo-URL ermitteln:**
+
+   ```bash
+   ask init --hosted-skill-id <deine-skill-id>
+   git -C <skill-verzeichnis> remote get-url origin
+   ```
+
+   Die Skill-ID steht im Test-Tab der Konsole (z. B.
+   `amzn1.ask.skill.fbcd5041-...`); die URL ist das von Amazon verwaltete
+   Git-Repo des Skills.
+
+3. **GitHub-Secrets hinterlegen** (Repo → *Settings* → *Secrets and
+   variables* → *Actions*):
+
+   | Secret | Inhalt |
+   |---|---|
+   | `ASK_ACCESS_TOKEN` | `access_token` aus `~/.ask/ask_cli_config` |
+   | `ASK_REFRESH_TOKEN` | `refresh_token` aus `~/.ask/ask_cli_config` |
+   | `ASK_VENDOR_ID` | Vendor-ID aus `~/.ask/cli_config` (falls vorhanden) |
+   | `ALEXA_HOSTED_REPO_URL` | Git-URL des Alexa-Repos (Schritt 2) |
+
+4. Ab jetzt deployt jeder Push auf `main` automatisch in die
+   Development-Stage deines Alexa-Skills (entspricht *Deploy* im Code-Tab).
+   Für Tests kann die Action auch manuell über *Actions* →
+   *Deploy to Alexa* → *Run workflow* angestoßen werden.
+
+> **Hinweis:** Der Push auf `master` des Alexa-Repos aktualisiert die
+> Development-Stage. Für *live* (veröffentlicht) muss zusätzlich
+> `master` → `prod` gemerged werden – das entspricht dem **Promote to
+> live**-Button und ist für den privaten Testbetrieb nicht nötig.
+
 ### Testen
 
 In [TESTING.md](TESTING.md) wird beschrieben, wie du den Skill testen kannst,

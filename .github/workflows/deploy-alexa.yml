@@ -1,0 +1,55 @@
+name: Deploy to Alexa
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install ASK CLI
+        run: npm install -g ask-cli
+
+      - name: Configure ASK CLI
+        run: |
+          mkdir -p ~/.ask
+          cat > ~/.ask/ask_cli_config <<EOF
+          {
+            "token": {
+              "access_token": "${{ secrets.ASK_ACCESS_TOKEN }}",
+              "refresh_token": "${{ secrets.ASK_REFRESH_TOKEN }}"
+            }
+          }
+          EOF
+          cat > ~/.ask/cli_config <<EOF
+          {
+            "profiles": {
+              "default": {
+                "vendor_id": "${{ secrets.ASK_VENDOR_ID }}",
+                "token": {
+                  "access_token": "${{ secrets.ASK_ACCESS_TOKEN }}",
+                  "refresh_token": "${{ secrets.ASK_REFRESH_TOKEN }}"
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Add Alexa-hosted remote
+        run: |
+          git remote remove alexa 2>/dev/null || true
+          git remote add alexa "${{ secrets.ALEXA_HOSTED_REPO_URL }}"
+
+      - name: Push to Alexa-hosted master branch
+        run: |
+          git push --no-verify alexa main:master
