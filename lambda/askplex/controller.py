@@ -15,7 +15,12 @@ from plexapi.audio import Track
 from plexapi.server import PlexServer
 from plexapi.exceptions import NotFound
 
-from . import config
+try:
+    from . import config
+except ImportError:
+    # config.py ist nicht versioniert (persönliche Zugangsdaten) –
+    # beim Alexa-hosted Import fällt der Code auf die leere Vorlage zurück.
+    from . import config_example as config
 from . import prompts
 from . import search_aliases
 from .unicode_normalizer import get_normalizer

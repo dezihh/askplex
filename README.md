@@ -14,18 +14,21 @@ Das Repo verwendet das **Skill-Package-Format** (Manifest + Interaction Models
 unter `skill-package/`, Lambda-Code unter `lambda/`) – das von Amazon
 dokumentierte Format für den Import aus einem Git-Repo als Alexa-hosted Skill.
 
-1. `lambda/askplex/config.py` ist **versioniert** (leere Vorlage, wie das
-   Original-Repo) und wird beim Import in die Alexa Console mitgezogen.
-   Trage dort deine Daten ein (Server-URL, Token, Name der Musik-Bibliothek):
+1. Erstelle deine persönliche Konfiguration aus der Vorlage:
 
    ```bash
-   cp lambda/askplex/config.example.py lambda/askplex/config.py
+   cp lambda/askplex/config_example.py lambda/askplex/config.py
    ```
 
-2. **Wichtig:** Beim Alexa-hosted Import musst du die Werte zusätzlich im
-   **Code-Editor der Alexa Developer Console** eintragen – die lokale Datei
-   wird bei `git pull`/`git checkout` mit der leeren Vorlage überschrieben.
-   Enthält die versionierte `config.py` echte Zugangsdaten, niemals committen!
+2. Trage die Daten deines Plex Media Servers in `lambda/askplex/config.py` ein
+   (Server-URL, Token, Name der Musik-Bibliothek).
+
+> `config.py` ist in der `.gitignore` ausgenommen (enthält sensible
+> Zugangsdaten wie den Plex-Token) und wird durch `git pull`/`git checkout`
+> niemals überschrieben. Nur `config_example.py` ist als Standardvorlage
+> versioniert. Beim Alexa-hosted Import (ohne `config.py` im Repo) fällt der
+> Code automatisch auf die leere Vorlage zurück – die echten Werte trägst du
+> dann im Code-Editor der Alexa-Konsole ein.
 
 3. **Import in der Alexa-Konsole:** *Create Skill* → *Custom* →
    *Alexa-Hosted (Python)* → *Import skill* → Git-Repo-URL angeben. Danach im

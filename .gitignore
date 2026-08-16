@@ -170,3 +170,6 @@ cython_debug/
 .pypirc
 
 # AskPlex: persönliche Konfiguration (wird aus config.example.py erstellt)
+# Enthält sensible Zugangsdaten (Plex-Token) und wird NIE versioniert.
+# Der Code fällt beim Import automatisch auf config.example.py zurück.
+lambda/askplex/config.py

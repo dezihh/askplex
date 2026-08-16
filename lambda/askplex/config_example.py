@@ -6,7 +6,7 @@ Diese Datei ist die versionierte Vorlage (Default). Sie wird NIE direkt
 bearbeitet. Stattdessen wird sie einmalig nach `config.py` kopiert und dort
 die eigenen Werte eingetragen:
 
-    cp lambda/askplex/config.example.py lambda/askplex/config.py
+    cp lambda/askplex/config_example.py lambda/askplex/config.py
 
 `config.py` ist in der .gitignore ausgenommen und wird daher bei
 `git pull` / `git checkout` niemals überschrieben.

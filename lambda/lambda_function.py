@@ -13,7 +13,12 @@ from ask_sdk_core.skill_builder import CustomSkillBuilder
 from ask_sdk_model import Response
 from ask_sdk_dynamodb.adapter import DynamoDbAdapter
 
-from askplex import config
+try:
+    from askplex import config
+except ImportError:
+    # config.py ist nicht versioniert (persönliche Zugangsdaten) –
+    # beim Alexa-hosted Import fällt der Code auf die leere Vorlage zurück.
+    from askplex import config_example as config
 from askplex import prompts
 from askplex import controller
 

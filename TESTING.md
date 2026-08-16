@@ -106,11 +106,12 @@ den ngrok-URL (Variante B) eintragen.
   produktiver Skill den Playlist-Zustand.
 - **Plex-Zugriff:** Beide Skills können denselben Plex-Server nutzen
   (URL + Token in `config.py`). Plex erlaubt mehrere parallele Clients.
-- **`config.py` ist versioniert (leere Vorlage):** Persönliche Werte (URL,
-  Token, Bibliotheksname) werden lokal in `lambda/askplex/config.py`
-  eingetragen bzw. nach dem Git-Import im **Code-Editor der Alexa-Konsole**
-  gesetzt. Die versionierte Datei darf keine echten Zugangsdaten enthalten –
-  sie wird bei `git pull`/`git checkout` mit der Vorlage überschrieben.
+- **`config.py` ist nicht versioniert (gitignored):** Sie wird aus
+  `config_example.py` erstellt und enthält die persönlichen Werte (URL,
+  Token, Bibliotheksname). Sie wird bei `git pull`/`git checkout` nie
+  überschrieben. Fehlt sie beim Alexa-hosted Import, fällt der Code
+  automatisch auf die leere Vorlage zurück – die Werte werden dann im
+  Code-Editor der Alexa-Konsole eingetragen.
 - **Spracherkennung (NLU) kann lokal nicht simuliert werden** – die
   Slot-Erkennung passiert server-seitig bei Amazon. Deshalb ist der Test-Tab
   der Dev Console der richtige Ort, um neue deutsche Samples zu prüfen.
