@@ -3,7 +3,7 @@
     "apis": {
       "custom": {
         "endpoint": {
-          "sourceDir": "lambda/py",
+          "sourceDir": "lambda",
           "uri": "Mein Plex"
         },
         "interfaces": [
@@ -39,6 +39,17 @@
           "keywords": [],
           "name": "Mein Plex",
           "summary": "Sample Short Description"
+        },
+        "de-DE": {
+          "description": "Mein Plex ist ein Alexa-Skill, mit dem du Musik abspielen kannst, die auf deinem Plex Media Server gespeichert ist.",
+          "examplePhrases": [
+            "Alexa öffne Mein Plex",
+            "Alexa bitte Mein Plex um Musik",
+            "Alexa bitte Mein Plex um Rockmusik"
+          ],
+          "keywords": [],
+          "name": "Mein Plex",
+          "summary": "Skill zum Abspielen von Musik von deinem Media Server"
         }
       }
     }
