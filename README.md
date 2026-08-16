@@ -35,8 +35,10 @@ zu übernehmen:
 1. **Exakter Treffer** – die unveränderte Anfrage wird gesucht und nur akzeptiert,
    wenn sie exakt mit einem Plex-Namen übereinstimmt (Groß-/Kleinschreibung egal).
 2. **Alias** – `lambda/askplex/search_aliases.json` bildet häufige Schreib- und
-   Sprechvarianten auf den exakten Plex-Namen ab (z. B. `ACDC` / `AC DC` / `A C D C` →
-   `AC/DC`, `pink` → `P!nk`).
+   Sprechvarianten auf den exakten Plex-Namen ab. Ein Eintrag wird am besten als
+   **Vergleichsschlüssel** gepflegt, damit er möglichst viele Sprechvarianten
+   abdeckt (z. B. `abcd` → `AB/CD` fängt `AB/CD`, `ABCD`, `A B C D`, `A.B.C.D.`
+   und `a. b. c. d.` ab; `pink` → `P!nk`).
 3. **Normalisierter Vergleichsschlüssel** – alle Plex-Künstler werden über einen
    deterministischen Schlüssel verglichen, der Groß-/Kleinschreibung, Satzzeichen
    und Leerzeichen ignoriert (`AC/DC`, `AC DC` und `A.C.D.C.` ergeben alle den
@@ -56,7 +58,12 @@ Grundsätze:
   damit eine unerwartete Auflösung für den Nutzer hörbar bleibt.
 
 Zum Pflegen der Aliase: `lambda/askplex/search_aliases.json` bearbeiten
-(linke Seite: erwartete Schreib-/Sprechvariante, rechte Seite: exakter Name in Plex).
+(linke Seite: erwartete Schreib-/Sprechvariante bzw. Vergleichsschlüssel,
+rechte Seite: exakter Name in Plex). Die zentrale Funktion
+`search_aliases.find_alias()` prüft drei Schlüsselformen (Rohwert, normalisierte
+Leerzeichen, Vergleichsschlüssel), sodass pro Spezialfall meist ein Eintrag
+genügt – die Alias-Liste ist nur für Spezialfälle gedacht (z. B. Akronyme), der
+Regelfall läuft über den Vergleichsschlüssel.
 
 ### Roadmap / Offene To-Dos
 

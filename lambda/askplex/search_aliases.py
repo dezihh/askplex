@@ -12,6 +12,8 @@ import json
 import os
 import logging
 
+from .unicode_normalizer import get_normalizer
+
 logger = logging.getLogger(__name__)
 
 ALIAS_PATH = os.path.join(os.path.dirname(__file__), "search_aliases.json")
@@ -77,3 +79,39 @@ def reset_aliases() -> None:
     """
     global _aliases
     _aliases = None
+
+
+def find_alias(query: str, aliases: dict):
+    """
+    Löst eine Anfrage gegen einen Aliasbereich deterministisch auf.
+
+    Es werden nacheinander drei Schlüsselformen geprüft, damit eine einzige
+    Aliasschreibweise möglichst viele Sprechvarianten abdeckt:
+
+    1. Der rohe Anfragewert (casefold), z. B. ``a. b. c. d.``
+    2. Leerzeichen-normalisiert, z. B. ``a. c. d. c.``
+    3. Vergleichsschlüssel (Satzzeichen/Leerzeichen/Großschreibung
+       ignoriert), z. B. ``abcd``
+
+    Ein Eintrag ``"abcd": "AB/CD"`` fängt damit automatisch ``AB/CD``,
+    ``ABCD``, ``A B C D``, ``A.B.C.D.`` und ``a. b. c. d.`` ab.
+
+    Args:
+        query: Vom Nutzer gesprochener Rohwert.
+        aliases: Aliasbereich als Dict (Schlüssel casefold-normalisiert).
+
+    Returns:
+        Aliasziel (kanonischer Plex-Name) oder None.
+    """
+    if not query or not aliases:
+        return None
+
+    candidates = [
+        query.casefold(),
+        " ".join(query.split()).casefold(),
+        get_normalizer().get_comparison_key(query),
+    ]
+    for candidate in candidates:
+        if candidate in aliases:
+            return aliases[candidate]
+    return None

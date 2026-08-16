@@ -1026,14 +1026,10 @@ class Controller:
             result["candidates"] = [self._artist_candidate(artist) for artist in exact_matches]
             return result
 
-        # 2. Alias nachschlagen (Rohwert + normalisierte Leerzeichen)
+        # 2. Alias nachschlagen (zentrale Funktion, drei Schlüsselformen)
         aliases = search_aliases.get_aliases()
         artist_aliases = aliases.get("artists", {})
-        alias_target = None
-        for alias_key in (query.casefold(), " ".join(query.split()).casefold()):
-            if alias_key in artist_aliases:
-                alias_target = artist_aliases[alias_key]
-                break
+        alias_target = search_aliases.find_alias(query, artist_aliases)
 
         if alias_target:
             try:
@@ -1067,7 +1063,12 @@ class Controller:
         matched_artists = []
         seen_rating_keys = set()
 
-        for variant in normalizer.get_search_variants(query):
+        search_variants = list(normalizer.get_search_variants(query))
+        comparison_variant = normalizer.get_comparison_key(query)
+        if comparison_variant and comparison_variant not in search_variants:
+            search_variants.append(comparison_variant)
+
+        for variant in search_variants:
             try:
                 variant_results = self.section.searchArtists(title=variant)
             except Exception as exception:
@@ -1250,11 +1251,7 @@ class Controller:
         """
         aliases = search_aliases.get_aliases()
         song_aliases = aliases.get("songs", {})
-        alias_target = None
-        for alias_key in (song.casefold(), " ".join(song.split()).casefold()):
-            if alias_key in song_aliases:
-                alias_target = song_aliases[alias_key]
-                break
+        alias_target = search_aliases.find_alias(song, song_aliases)
 
         if alias_target:
             try:
@@ -1313,11 +1310,7 @@ class Controller:
         """
         aliases = search_aliases.get_aliases()
         album_aliases = aliases.get("albums", {})
-        alias_target = None
-        for alias_key in (album.casefold(), " ".join(album.split()).casefold()):
-            if alias_key in album_aliases:
-                alias_target = album_aliases[alias_key]
-                break
+        alias_target = search_aliases.find_alias(album, album_aliases)
 
         if alias_target:
             try:
@@ -1387,11 +1380,7 @@ class Controller:
         """
         aliases = search_aliases.get_aliases()
         playlist_aliases = aliases.get("playlists", {})
-        alias_target = None
-        for alias_key in (query.casefold(), " ".join(query.split()).casefold()):
-            if alias_key in playlist_aliases:
-                alias_target = playlist_aliases[alias_key]
-                break
+        alias_target = search_aliases.find_alias(query, playlist_aliases)
 
         normalizer = get_normalizer()
         variants = normalizer.get_search_variants(query)

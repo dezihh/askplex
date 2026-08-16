@@ -180,23 +180,34 @@ class TestResolveArtist:
         assert result["match_source"] == "exact"
         assert result["candidates"] == [{"rating_key": "123", "name": "AC/DC"}]
 
-    def test_alias_match(self, controller_with_handler):
+    def test_acdc_without_alias_via_normalized(self, controller_with_handler):
         ctrl, _ = controller_with_handler
         acdc = make_artist(123, "AC/DC")
-        # Plex kennt "AC/DC", findet aber "ACDC" nicht exakt
+        # AC/DC ist bewusst NICHT in der Alias-Tabelle: Vergleichsschlüssel greift
         _set_section(ctrl, {"AC/DC": [acdc]}, all_artists=[acdc])
 
         result = ctrl.resolve_artist("ACDC")
         assert result["status"] == "match"
-        assert result["match_source"] == "alias"
+        assert result["match_source"] == "normalized"
         assert result["candidates"][0]["name"] == "AC/DC"
+
+    def test_alias_match_ab_cd(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        ab_cd = make_artist(123, "AB/CD")
+        # Plex kennt "AB/CD", findet aber "a. b. c. d." nicht exakt
+        _set_section(ctrl, {"AB/CD": [ab_cd]}, all_artists=[ab_cd])
+
+        result = ctrl.resolve_artist("a. b. c. d.")
+        assert result["status"] == "match"
+        assert result["match_source"] == "alias"
+        assert result["candidates"][0]["name"] == "AB/CD"
 
     def test_alias_target_missing_in_plex(self, controller_with_handler):
         ctrl, _ = controller_with_handler
-        # Alias "acdc" -> "AC/DC", aber Plex kennt "AC/DC" nicht
+        # Alias "abcd" -> "AB/CD", aber Plex kennt "AB/CD" nicht
         _set_section(ctrl, {}, all_artists=[])
 
-        result = ctrl.resolve_artist("ACDC")
+        result = ctrl.resolve_artist("a. b. c. d.")
         assert result["status"] == "not_found"
 
     def test_normalized_single_match(self, controller_with_handler):

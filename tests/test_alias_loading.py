@@ -28,9 +28,7 @@ class TestAliasLoading:
     def test_loads_initial_aliases(self):
         """Die versionierte Aliasdatei ist gültig und enthält die erwarteten Aliase."""
         aliases = search_aliases.load_aliases()
-        assert aliases["artists"]["acdc"] == "AC/DC"
-        assert aliases["artists"]["ac dc"] == "AC/DC"
-        assert aliases["artists"]["a c d c"] == "AC/DC"
+        assert aliases["artists"]["abcd"] == "AB/CD"
         assert aliases["artists"]["pink"] == "P!nk"
         assert aliases["artists"]["guns and roses"] == "Guns N' Roses"
         assert aliases["songs"] == {}
@@ -79,4 +77,40 @@ class TestAliasLoading:
         first = search_aliases.get_aliases()
         second = search_aliases.get_aliases()
         assert first is second
-        assert first["artists"]["acdc"] == "AC/DC"
+        assert first["artists"]["abcd"] == "AB/CD"
+
+
+class TestFindAlias:
+    """find_alias: eine Alias-Schreibweise deckt mehrere Sprechvarianten ab."""
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "AB/CD",
+            "ABCD",
+            "A B C D",
+            "A.B.C.D.",
+            "a. b. c. d.",
+            "a.b.c.d.",
+        ],
+    )
+    def test_ab_cd_variants_resolve(self, query):
+        """Alle Schreibvarianten von AB/CD treffen den Alias-Eintrag 'abcd'."""
+        aliases = search_aliases.get_aliases()["artists"]
+        assert search_aliases.find_alias(query, aliases) == "AB/CD"
+
+    def test_non_matching_key_returns_none(self):
+        """ABCE darf nicht auf AB/CD auflösen."""
+        aliases = search_aliases.get_aliases()["artists"]
+        assert search_aliases.find_alias("ABCE", aliases) is None
+
+    def test_empty_query_returns_none(self):
+        assert search_aliases.find_alias("", {"abcd": "AB/CD"}) is None
+
+    def test_empty_aliases_returns_none(self):
+        assert search_aliases.find_alias("AB/CD", {}) is None
+
+    def test_raw_key_still_works(self):
+        """Bestehende Schreibweise (z. B. 'pink') bleibt direkt auflösbar."""
+        aliases = search_aliases.get_aliases()["artists"]
+        assert search_aliases.find_alias("pink", aliases) == "P!nk"
