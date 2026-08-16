@@ -15,8 +15,6 @@ weiterentwickelt:
   inkl. nummerierter Auswahl bei Mehrdeutigkeit – keine Zufallstreffer.
 - **Robust gegen Alexa-Besonderheiten:** buchstabierte Namen
   (`a. b. c. d.` → `AB/CD`), Umlaute, Satzzeichen.
-- **Automatisches Deploy:** Ein Push auf `main` aktualisiert den Skill direkt
-  in der Alexa-Konsole (Development-Stage) über GitHub Actions.
 
 > ***Hinweis:*** Mein Plex stellt keine Medieninhalte oder Quellen bereit. Du
 > musst deine eigenen Inhalte von einem Plex Media Server bereitstellen. Das
@@ -44,11 +42,41 @@ importiert. So richtest du ihn ein:
    Skill nicht. Unter *Interaction Model → Build* den Invocation Name
    bestätigen und **Build Model** klicken.
 9. Im **Code**-Tab die Datei `lambda/askplex/config.py` öffnen und deine
-   Plex-Zugangsdaten eintragen (Server-URL, Token, Name der
-   Musik-Bibliothek), dann **Deploy** klicken.
+   Plex-Zugangsdaten eintragen (siehe unten), dann **Deploy** klicken.
 
 Danach kannst du den Skill im **Test**-Tab ausprobieren:
 „Alexa, starte Mein Plex" bzw. „spiele Musik von … auf Mein Plex".
+
+#### Woher kommen die Plex-Zugangsdaten?
+
+In `config.py` werden drei Werte benötigt:
+
+- **`PMS_SERVER_URL`** – die Adresse, unter der dein Plex Media Server erreichbar
+  ist (z. B. `http://192.168.1.10:32400` im Heimnetz oder
+  `https://plex.example.com` hinter einem Reverse-Proxy). Den genauen Wert
+  findest du in Plex unter *Settings → Server → Allgemein → „Konnektivität"*
+  bzw. in der Plex Web App in der Adressleiste, wenn du Musik abspielst.
+  **Wichtig:** Alexa verlangt für die Wiedergabe **HTTPS**-Streams – ein
+  reines `http://` im Heimnetz funktioniert nur eingeschränkt. Am
+  zuverlässigsten ist eine öffentlich erreichbare `https://`-Adresse
+  (z. B. über Plex Remote Access oder einen Reverse-Proxy mit gültigem
+  Zertifikat).
+- **`PMS_SERVER_TOKEN`** – ein **Authentifizierungs-Token** (auch
+  `X-Plex-Token` genannt). Es wird **nicht angezeigt**, sondern muss aus der
+  Plex Web App **extrahiert** werden (offizielle Methode von Plex):
+  1. Melde dich in der [Plex Web App](https://app.plex.tv) mit deinem
+     Plex-Konto an.
+  2. Öffne einen Eintrag aus deiner Musik-Bibliothek und klicke auf das
+     Menü **„…" → „Get Info" / „Info anzeigen" → „View XML"** (bzw. öffne
+     das XML des Eintrags).
+  3. In der URL des XML siehst du den Parameter `X-Plex-Token=…` – genau
+     diesen Wert trägst du als `PMS_SERVER_TOKEN` ein.
+  - Hinweis: Dieser Token ist an dein Plex-Konto gebunden und bleibt gültig,
+    bis du das Passwort änderst bzw. alle Geräte abmeldest. Er ist geheim –
+    niemals teilen oder in das Git-Repo committen.
+- **`PMS_DEFAULT_SECTION_NAME`** – der Name deiner Musik-Bibliothek in Plex,
+  z. B. `Musik`. Du findest ihn in Plex unter *Einstellungen → Server →
+  Bibliotheken* bzw. als Namen der Bibliothek in der Plex Web App.
 
 ### Konfiguration (Plex-Zugangsdaten)
 
