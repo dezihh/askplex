@@ -207,7 +207,8 @@
           ],
           "name": "playlist_names"
         }
-      ]
+      ],
+      "invocationName": "askplex"
     }
   }
 }
