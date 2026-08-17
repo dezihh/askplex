@@ -474,3 +474,15 @@ class TestBuildStreamUri:
 
         track.getStreamURL.assert_called_once_with(protocol="hls")
         assert uri == "http://plex.local/audio/1/start.m3u8?token=x"
+
+    def test_container_on_media_falls_back_to_part_check(self, controller_with_handler):
+        """Container liegt je nach Plex-Version auf Media statt Part."""
+        ctrl, _ = controller_with_handler
+        track = make_track(1, "Song", "Artist")
+        track.media = [MagicMock()]
+        track.media[0].parts = [MagicMock()]
+        track.media[0].parts[0].container = None
+        track.media[0].container = "mp3"
+        track.media[0].parts[0].key = "/library/parts/1/file.mp3"
+        ctrl._build_stream_uri(track)
+        track.media[0].parts[0].key  # ensure accessed

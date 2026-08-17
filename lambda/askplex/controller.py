@@ -657,22 +657,35 @@ class Controller:
         dann die Datei mit Content-Length – erst dadurch zeigt Alexa Dauer
         und Fortschrittsbalken an.
 
-        Für alle anderen Formate (z. B. FLAC) wird der HLS-Transcode-Stream
-        (m3u8) verwendet. Alexa unterstützt HLS nativ und kann die
-        Gesamtdauer aus dem Manifest ableiten – anders als beim früheren
-        mp3-Transcode, der ohne Längenangabe ausgeliefert wurde.
+        Für alle anderen Formate wird der HLS-Transcode-Stream (m3u8)
+        verwendet. Alexa unterstützt HLS nativ und kann die Gesamtdauer aus
+        dem Manifest ableiten – anders als beim früheren mp3-Transcode, der
+        ohne Längenangabe ausgeliefert wurde.
         """
+        container = None
         try:
             media = plex_track.media
             if media and media[0].parts:
                 part = media[0].parts[0]
+                # Der Container steht je nach Plex-Version auf dem Part- oder
+                # dem Media-Element – beide prüfen.
                 container = getattr(part, "container", None)
+                if not container:
+                    container = getattr(media[0], "container", None)
                 if container in ("mp3", "m4a", "aac", "mp4"):
-                    return plex_track._server.url(part.key, includeToken=True)
+                    uri = plex_track._server.url(part.key, includeToken=True)
+                    self.logger.info(
+                        "Stream: Datei-Endpoint fuer Container '%s': %s", container, uri
+                    )
+                    return uri
         except Exception as exception:
             self.logger.error("Fehler beim Lesen des Track-Containers: %s", exception)
 
-        return plex_track.getStreamURL(protocol="hls")
+        uri = plex_track.getStreamURL(protocol="hls")
+        self.logger.info(
+            "Stream: HLS-Fallback (Container: %s): %s", container, uri
+        )
+        return uri
 
 
     def add_plex_tracks(self, plex_track_list: List[Track]) -> None:
