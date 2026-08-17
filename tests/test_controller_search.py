@@ -418,30 +418,38 @@ class TestContinueAfterSelection:
         assert "Thunderstruck" in handler.response_builder.speech_text
 
 class TestBuildStreamUri:
-    """_build_stream_uri: Direct-Stream bei Alexa-unterstützten Formaten."""
+    """_build_stream_uri: Datei-Endpoint bei Alexa-unterstützten Formaten."""
 
-    def test_mp3_uses_direct_stream(self, controller_with_handler):
+    def _server_url(self, track, url):
+        track._server.url.side_effect = lambda key, includeToken=False: "http://plex.local" + key
+
+    def test_mp3_uses_file_endpoint(self, controller_with_handler):
         ctrl, _ = controller_with_handler
         track = make_track(1, "Song", "Artist")
         track.media = [MagicMock()]
         track.media[0].parts = [MagicMock()]
         track.media[0].parts[0].container = "mp3"
+        track.media[0].parts[0].key = "/library/parts/1/file.mp3"
+        self._server_url(track, "file.mp3")
 
         uri = ctrl._build_stream_uri(track)
 
-        track.getStreamURL.assert_called_once_with(directStream=True)
-        assert uri == "http://plex.local/stream"
+        track.getStreamURL.assert_not_called()
+        assert uri == "http://plex.local/library/parts/1/file.mp3"
 
-    def test_m4a_uses_direct_stream(self, controller_with_handler):
+    def test_m4a_uses_file_endpoint(self, controller_with_handler):
         ctrl, _ = controller_with_handler
         track = make_track(1, "Song", "Artist")
         track.media = [MagicMock()]
         track.media[0].parts = [MagicMock()]
         track.media[0].parts[0].container = "m4a"
+        track.media[0].parts[0].key = "/library/parts/1/file.m4a"
+        self._server_url(track, "file.m4a")
 
         uri = ctrl._build_stream_uri(track)
 
-        track.getStreamURL.assert_called_once_with(directStream=True)
+        track.getStreamURL.assert_not_called()
+        assert uri == "http://plex.local/library/parts/1/file.m4a"
 
     def test_flac_falls_back_to_transcode(self, controller_with_handler):
         ctrl, _ = controller_with_handler

@@ -652,21 +652,21 @@ class Controller:
         """
         Baut die Stream-URL für einen Plex-Track.
 
-        Für Formate, die Alexa direkt abspielen kann (MP3, M4A), wird der
-        Direct-Stream verwendet. Plex liefert dann die Originaldatei mit
-        Content-Length – erst dadurch zeigt Alexa Dauer und
-        Fortschrittsbalken an. Bei anderen Formaten (z. B. FLAC) bleibt der
-        Transcode-Stream (ohne Längenangabe, aber abspielbar).
+        Für Formate, die Alexa direkt abspielen kann (MP3, M4A, AAC, MP4),
+        wird der Datei-Endpoint der Originaldatei verwendet. Plex liefert
+        dann die Datei mit Content-Length – erst dadurch zeigt Alexa Dauer
+        und Fortschrittsbalken an. Bei anderen Formaten (z. B. FLAC) bleibt
+        der Transcode-Stream (ohne Längenangabe, aber abspielbar).
         """
-        container = None
         try:
-            if plex_track.media and plex_track.media[0].parts:
-                container = plex_track.media[0].parts[0].container
+            media = plex_track.media
+            if media and media[0].parts:
+                part = media[0].parts[0]
+                container = getattr(part, "container", None)
+                if container in ("mp3", "m4a", "aac", "mp4"):
+                    return plex_track._server.url(part.key, includeToken=True)
         except Exception as exception:
             self.logger.error("Fehler beim Lesen des Track-Containers: %s", exception)
-
-        if container in ("mp3", "m4a", "aac", "mp4"):
-            return plex_track.getStreamURL(directStream=True)
 
         return plex_track.getStreamURL().replace("m3u8", "mp3")
 
