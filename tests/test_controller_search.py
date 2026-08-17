@@ -451,25 +451,26 @@ class TestBuildStreamUri:
         track.getStreamURL.assert_not_called()
         assert uri == "http://plex.local/library/parts/1/file.m4a"
 
-    def test_flac_falls_back_to_transcode(self, controller_with_handler):
+    def test_flac_uses_hls_stream(self, controller_with_handler):
         ctrl, _ = controller_with_handler
         track = make_track(1, "Song", "Artist")
         track.media = [MagicMock()]
         track.media[0].parts = [MagicMock()]
         track.media[0].parts[0].container = "flac"
-        track.getStreamURL.return_value = "http://plex.local/audio/1/stream.m3u8?token=x"
+        track.getStreamURL.return_value = "http://plex.local/audio/1/start.m3u8?token=x"
 
         uri = ctrl._build_stream_uri(track)
 
-        track.getStreamURL.assert_called_once_with()
-        assert uri == "http://plex.local/audio/1/stream.mp3?token=x"
+        track.getStreamURL.assert_called_once_with(protocol="hls")
+        assert uri == "http://plex.local/audio/1/start.m3u8?token=x"
 
-    def test_missing_media_falls_back_to_transcode(self, controller_with_handler):
+    def test_missing_media_uses_hls_stream(self, controller_with_handler):
         ctrl, _ = controller_with_handler
         track = make_track(1, "Song", "Artist")
         track.media = []
+        track.getStreamURL.return_value = "http://plex.local/audio/1/start.m3u8?token=x"
 
         uri = ctrl._build_stream_uri(track)
 
-        track.getStreamURL.assert_called_once_with()
-        assert uri == "http://plex.local/stream"
+        track.getStreamURL.assert_called_once_with(protocol="hls")
+        assert uri == "http://plex.local/audio/1/start.m3u8?token=x"

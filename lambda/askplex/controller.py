@@ -655,8 +655,12 @@ class Controller:
         Für Formate, die Alexa direkt abspielen kann (MP3, M4A, AAC, MP4),
         wird der Datei-Endpoint der Originaldatei verwendet. Plex liefert
         dann die Datei mit Content-Length – erst dadurch zeigt Alexa Dauer
-        und Fortschrittsbalken an. Bei anderen Formaten (z. B. FLAC) bleibt
-        der Transcode-Stream (ohne Längenangabe, aber abspielbar).
+        und Fortschrittsbalken an.
+
+        Für alle anderen Formate (z. B. FLAC) wird der HLS-Transcode-Stream
+        (m3u8) verwendet. Alexa unterstützt HLS nativ und kann die
+        Gesamtdauer aus dem Manifest ableiten – anders als beim früheren
+        mp3-Transcode, der ohne Längenangabe ausgeliefert wurde.
         """
         try:
             media = plex_track.media
@@ -668,7 +672,7 @@ class Controller:
         except Exception as exception:
             self.logger.error("Fehler beim Lesen des Track-Containers: %s", exception)
 
-        return plex_track.getStreamURL().replace("m3u8", "mp3")
+        return plex_track.getStreamURL(protocol="hls")
 
 
     def add_plex_tracks(self, plex_track_list: List[Track]) -> None:
