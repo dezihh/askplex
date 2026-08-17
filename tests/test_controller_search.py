@@ -180,15 +180,16 @@ class TestResolveArtist:
         assert result["match_source"] == "exact"
         assert result["candidates"] == [{"rating_key": "123", "name": "AC/DC"}]
 
-    def test_acdc_without_alias_via_normalized(self, controller_with_handler):
+    def test_acdc_via_alias(self, controller_with_handler):
         ctrl, _ = controller_with_handler
         acdc = make_artist(123, "AC/DC")
-        # AC/DC ist bewusst NICHT in der Alias-Tabelle: Vergleichsschlüssel greift
+        # Alexa buchstabiert AC/DC als "a. c. d. c." - der Alias-Eintrag
+        # "acdc" -> "AC/DC" fängt das ueber den Vergleichsschluessel ab
         _set_section(ctrl, {"AC/DC": [acdc]}, all_artists=[acdc])
 
-        result = ctrl.resolve_artist("ACDC")
+        result = ctrl.resolve_artist("a. c. d. c.")
         assert result["status"] == "match"
-        assert result["match_source"] == "normalized"
+        assert result["match_source"] == "alias"
         assert result["candidates"][0]["name"] == "AC/DC"
 
     def test_alias_match_ab_cd(self, controller_with_handler):
@@ -486,3 +487,61 @@ class TestBuildStreamUri:
         track.media[0].parts[0].key = "/library/parts/1/file.mp3"
         ctrl._build_stream_uri(track)
         track.media[0].parts[0].key  # ensure accessed
+
+
+class TestMaskToken:
+    """_mask_token: Plex-Token wird in Log-URLs maskiert."""
+
+    def test_masks_token_in_query(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        url = "https://plex.local/file.mp3?X-Plex-Token=secret123&extra=1"
+        masked = ctrl._mask_token(url)
+        assert "secret123" not in masked
+        assert masked == "https://plex.local/file.mp3?X-Plex-Token=***&extra=1"
+
+    def test_returns_url_unchanged_without_token(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        url = "https://plex.local/file.mp3"
+        assert ctrl._mask_token(url) == url
+
+
+class TestDisplayMetadata:
+    """_display_title/_display_subtitle/_format_duration: Echo-Anzeige."""
+
+    def _track(self, **overrides):
+        track = {
+            "id": "1",
+            "title": "Thunderstruck",
+            "artist": "AC/DC",
+            "album": "The Razors Edge",
+            "duration": 292000,
+        }
+        track.update(overrides)
+        return track
+
+    def test_title_with_duration(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        assert ctrl._display_title(self._track()) == "Thunderstruck (4:52)"
+
+    def test_title_without_duration(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        assert ctrl._display_title(self._track(duration=None)) == "Thunderstruck"
+
+    def test_title_hours_format(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        assert ctrl._display_title(self._track(duration=3725000)) == "Thunderstruck (1:02:05)"
+
+    def test_subtitle_artist_and_album(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        assert ctrl._display_subtitle(self._track()) == "AC/DC • The Razors Edge"
+
+    def test_subtitle_without_album(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        assert ctrl._display_subtitle(self._track(album=None)) == "AC/DC"
+
+    def test_format_duration(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        assert ctrl._format_duration(0) == "0:00"
+        assert ctrl._format_duration(59000) == "0:59"
+        assert ctrl._format_duration(61000) == "1:01"
+        assert ctrl._format_duration(3600000) == "1:00:00"

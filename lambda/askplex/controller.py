@@ -1,4 +1,5 @@
 import random
+import re
 
 from typing import List, Dict
 from logging import Logger
@@ -276,7 +277,7 @@ class Controller:
         """
         Converts a track (Dict) to an AudioItem object.
         Args:
-            track (Dict): A dictionary containing track information with keys "title", "artist", "album", "album_art", "artist_art", "id", and "uri".
+            track (Dict): A dictionary containing track information with keys "title", "artist", "album", "album_art", "artist_art", "id", "uri" and optional "duration".
             offset (int): The offset in milliseconds for the audio stream.
             previous_token (str): The expected previous token for the audio stream.
         Returns:
@@ -286,8 +287,8 @@ class Controller:
         self.logger.debug('In track_to_audio_item()')
 
         metadata = AudioItemMetadata(
-            title = track["title"],
-            subtitle = track["artist"]
+            title = self._display_title(track),
+            subtitle = self._display_subtitle(track)
         )        
         if track["album_art"] is not None:
             metadata.art=display.Image(
@@ -310,6 +311,41 @@ class Controller:
 
         stream = Stream(token=track["id"], url=track["uri"], offset_in_milliseconds=offset, expected_previous_token=previous_token)
         return AudioItem(stream=stream, metadata=metadata)
+
+    def _display_title(self, track: Dict) -> str:
+        """
+        Baut den Anzeige-Titel für den AudioPlayer.
+
+        Bei bekannter Dauer wird sie in Klammern an den Songtitel angehängt
+        (z. B. "Thunderstruck (4:52)"), da die Echo-Anzeige nur zwei
+        Textzeilen (Titel/Untertitel) unterstützt und Alexa die Dauer bei
+        Plex-Streams nicht selbst ermittelt.
+        """
+        duration = track.get("duration")
+        if duration:
+            return "{} ({})".format(track["title"], self._format_duration(duration))
+        return track["title"]
+
+    def _display_subtitle(self, track: Dict) -> str:
+        """
+        Baut den Anzeige-Untertitel für den AudioPlayer.
+
+        Format: "Künstler • Album" – vorhandene Teile werden kombiniert,
+        fehlende entfallen.
+        """
+        parts = [part for part in (track.get("artist"), track.get("album")) if part]
+        return " • ".join(parts)
+
+    def _format_duration(self, duration_ms: int) -> str:
+        """
+        Formatiert eine Dauer in Millisekunden als m:ss bzw. h:mm:ss.
+        """
+        total_seconds = max(0, int(duration_ms)) // 1000
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if hours:
+            return "{}:{:02d}:{:02d}".format(hours, minutes, seconds)
+        return "{}:{:02d}".format(minutes, seconds)
 
 
     def resume_playback (self) -> Response:
@@ -643,10 +679,19 @@ class Controller:
                 "artist_art": plex_track.url(plex_track.grandparentArt),
                 "album": plex_track.parentTitle,
                 "album_art": plex_track.url(plex_track.parentThumb),
-                "uri": self._build_stream_uri(plex_track)
+                "uri": self._build_stream_uri(plex_track),
+                "duration": getattr(plex_track, "duration", None)
                 }
 
         self.add_track(track)
+
+    def _mask_token(self, url: str) -> str:
+        """
+        Maskiert das Plex-Token in einer URL für Log-Ausgaben.
+
+        Beispiel: ``...?X-Plex-Token=abc`` -> ``...?X-Plex-Token=***``
+        """
+        return re.sub(r"(X-Plex-Token=)[^&\s]+", r"\1***", url)
 
     def _build_stream_uri(self, plex_track: Track) -> str:
         """
@@ -675,7 +720,8 @@ class Controller:
                 if container in ("mp3", "m4a", "aac", "mp4"):
                     uri = plex_track._server.url(part.key, includeToken=True)
                     self.logger.info(
-                        "Stream: Datei-Endpoint fuer Container '%s': %s", container, uri
+                        "Stream: Datei-Endpoint fuer Container '%s': %s",
+                        container, self._mask_token(uri)
                     )
                     return uri
         except Exception as exception:
@@ -683,7 +729,8 @@ class Controller:
 
         uri = plex_track.getStreamURL(protocol="hls")
         self.logger.info(
-            "Stream: HLS-Fallback (Container: %s): %s", container, uri
+            "Stream: HLS-Fallback (Container: %s): %s",
+            container, self._mask_token(uri)
         )
         return uri
 

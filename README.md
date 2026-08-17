@@ -157,6 +157,48 @@ bei jedem Push auf `main` automatisch in das Alexa-Repo deployed.
 > `master` → `prod` gemerged werden – das entspricht dem **Promote to
 > live**-Button und ist für den privaten Testbetrieb nicht nötig.
 
+### CloudWatch-Logs (How-to)
+
+Die Lambda-Logs des Alexa-hosted Skills liegen in Amazon CloudWatch – so
+erreichst du sie:
+
+1. [Alexa Developer Console](https://developer.amazon.com/alexa/console/ask)
+   öffnen und in der Skill-Liste auf **„Mein Plex"** klicken.
+2. Den **Code**-Tab öffnen.
+3. In der Toolbar auf den **Pfeil neben dem Logs-Icon** klicken und die Region
+   wählen – für dieses Projekt ist das **eu-west-1 (Irland)**.
+4. Die AWS-Konsole öffnet sich (Login über das Skill-Konto, nicht über ein
+   privates AWS-Konto). In der Log-Gruppe der Skill-Lambda erscheinen die
+   Logs, sobald der Skill im **Test**-Tab oder auf einem Gerät genutzt wird.
+
+Hinweise:
+
+- **`cloudwatch:GetMetricData`-Fehler sind harmlos** – die Metrik-Grafiken
+  oben sind mit der Skill-Rolle nicht abrufbar, die Log-Events funktionieren
+  trotzdem.
+- **Unsichtbarer Text:** Dunkler Text auf dunklem Grund ist ein Theme-Problem –
+  unten links auf das Zahnrad klicken und das **Theme auf „Light"** stellen.
+- **Diagnose-Zeilen:** Der Skill loggt die gewählte Stream-Strategie, z. B.
+  `Stream: Datei-Endpoint fuer Container 'mp3': https://...` (Originaldatei
+  mit Content-Length) oder `Stream: HLS-Fallback (Container: ...): https://...`.
+  Das Plex-Token ist in den Log-Zeilen maskiert (`X-Plex-Token=***`).
+- **Deploy:** Nach einem `git push` ggf. im Code-Tab einmal **Deploy** klicken,
+  da der automatische Deploy nicht immer sofort greift.
+
+### Anzeige auf Geräten mit Bildschirm
+
+Auf Echo-Geräten mit Display (z. B. Echo Show) zeigt Alexa für den
+AudioPlayer nur **zwei Textzeilen** an: Titel und Untertitel. Der Skill nutzt
+das wie folgt:
+
+- **Titel:** `Songtitel (4:52)` – die Dauer wird in Klammern angehängt,
+  sofern Plex sie kennt (sonst nur der Songtitel). Die Echo-Anzeige zeigt
+  sonst keine Laufzeit an, da Alexa sie bei Plex-Streams nicht selbst
+  ermittelt.
+- **Untertitel:** `Künstler • Album` – vorhandene Teile werden kombiniert,
+  fehlende entfallen.
+- **Album-Cover** wird als Artwork eingeblendet, sofern verfügbar.
+
 ### Testen
 
 In [TESTING.md](TESTING.md) wird beschrieben, wie du den Skill testen kannst,
@@ -173,7 +215,8 @@ zu übernehmen:
    Sprechvarianten auf den exakten Plex-Namen ab. Ein Eintrag wird am besten als
    **Vergleichsschlüssel** gepflegt, damit er möglichst viele Sprechvarianten
    abdeckt (z. B. `abcd` → `AB/CD` fängt `AB/CD`, `ABCD`, `A B C D`, `A.B.C.D.`
-   und `a. b. c. d.` ab; `pink` → `P!nk`).
+   und `a. b. c. d.` ab; `acdc` → `AC/DC` fängt die Alexa-Buchstabierung
+   `a. c. d. c.` ab; `pink` → `P!nk`).
 3. **Normalisierter Vergleichsschlüssel** – alle Plex-Künstler werden über einen
    deterministischen Schlüssel verglichen, der Groß-/Kleinschreibung, Satzzeichen
    und Leerzeichen ignoriert (`AC/DC`, `AC DC` und `A.C.D.C.` ergeben alle den
@@ -204,6 +247,11 @@ Regelfall läuft über den Vergleichsschlüssel.
 
 Ideen für zukünftige Verbesserungen (noch nicht umgesetzt):
 
+- [ ] **Zeitanzeige/Fortschrittsbalken auf Echo-Geräten** – Diagnose-Stand:
+      Server liefert `Content-Length` + Range korrekt, Dateien sind CBR mit
+      bekannter Dauer, Alexa zeigt trotzdem einen Live-/Streaming-Balken ohne
+      Zeitangabe. Nächster Schritt: S3-Isolationstest mit statischer MP3
+      (Zwischenschritt, kein eigenes To-Do).
 - [ ] **Sterne-Wiedergabe (`PlayMusicByRating`)** – „spiele meine 4-Sterne-Songs":
       Plex übernimmt das Rating aus den MP3-Tags als `userRating` (intern 0–10,
       5 Sterne = 10), Filter `userRating >= sterns*2`, sortiert nach Rating.
