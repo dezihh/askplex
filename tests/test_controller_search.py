@@ -416,3 +416,52 @@ class TestContinueAfterSelection:
         # Song wird ausschließlich innerhalb des Künstlers gesucht
         acdc.track.assert_called()
         assert "Thunderstruck" in handler.response_builder.speech_text
+
+class TestBuildStreamUri:
+    """_build_stream_uri: Direct-Stream bei Alexa-unterstützten Formaten."""
+
+    def test_mp3_uses_direct_stream(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        track = make_track(1, "Song", "Artist")
+        track.media = [MagicMock()]
+        track.media[0].parts = [MagicMock()]
+        track.media[0].parts[0].container = "mp3"
+
+        uri = ctrl._build_stream_uri(track)
+
+        track.getStreamURL.assert_called_once_with(directStream=True)
+        assert uri == "http://plex.local/stream"
+
+    def test_m4a_uses_direct_stream(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        track = make_track(1, "Song", "Artist")
+        track.media = [MagicMock()]
+        track.media[0].parts = [MagicMock()]
+        track.media[0].parts[0].container = "m4a"
+
+        uri = ctrl._build_stream_uri(track)
+
+        track.getStreamURL.assert_called_once_with(directStream=True)
+
+    def test_flac_falls_back_to_transcode(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        track = make_track(1, "Song", "Artist")
+        track.media = [MagicMock()]
+        track.media[0].parts = [MagicMock()]
+        track.media[0].parts[0].container = "flac"
+        track.getStreamURL.return_value = "http://plex.local/audio/1/stream.m3u8?token=x"
+
+        uri = ctrl._build_stream_uri(track)
+
+        track.getStreamURL.assert_called_once_with()
+        assert uri == "http://plex.local/audio/1/stream.mp3?token=x"
+
+    def test_missing_media_falls_back_to_transcode(self, controller_with_handler):
+        ctrl, _ = controller_with_handler
+        track = make_track(1, "Song", "Artist")
+        track.media = []
+
+        uri = ctrl._build_stream_uri(track)
+
+        track.getStreamURL.assert_called_once_with()
+        assert uri == "http://plex.local/stream"
